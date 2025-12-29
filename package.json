@@ -1,0 +1,23 @@
+{
+  "name": "studioctl",
+  "version": "0.1.0",
+  "description": "CLI tool to control Roblox Studio from the terminal",
+  "type": "module",
+  "scripts": {
+    "server": "node server/index.js",
+    "cli": "node cli/index.js",
+    "build:plugin": "rojo build plugin.project.json -o studioctl.rbxm",
+    "sync:plugin": "rojo build plugin.project.json -o \"$HOME/Documents/Roblox/Plugins/studioctl.rbxm\""
+  },
+  "bin": {
+    "studioctl": "./cli/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

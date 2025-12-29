@@ -1,0 +1,10 @@
+{
+  "name": "studioctl-test",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$path": "src/ServerScriptService"
+    }
+  }
+}

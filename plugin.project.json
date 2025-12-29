@@ -1,0 +1,6 @@
+{
+  "name": "studioctl",
+  "tree": {
+    "$path": "plugin/src"
+  }
+}
