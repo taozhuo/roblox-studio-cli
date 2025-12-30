@@ -137,10 +137,13 @@ function broadcastRepoChanged(revision, files) {
 }
 
 function broadcastStudioExec(code) {
+  // Send via WebSocket
   broadcast({
     type: 'studio.exec',
     code
   });
+  // Also queue for HTTP polling fallback
+  pendingExec = code;
 }
 
 // ============ WebSocket Server ============
@@ -239,6 +242,24 @@ app.post('/exec/result', async (req, res) => {
 app.get('/exec/result', (req, res) => {
   res.json(lastExecResult || { success: false, error: 'No execution yet' });
 });
+
+// Pending exec for polling fallback when WS unavailable
+let pendingExec = null;
+
+app.get('/exec/pending', (req, res) => {
+  if (pendingExec) {
+    const code = pendingExec;
+    pendingExec = null; // Clear after sending
+    res.json({ code });
+  } else {
+    res.json({ code: null });
+  }
+});
+
+// Called by broadcastStudioExec to also queue for polling
+function queueExecForPolling(code) {
+  pendingExec = code;
+}
 
 // ============ Sync Endpoints ============
 

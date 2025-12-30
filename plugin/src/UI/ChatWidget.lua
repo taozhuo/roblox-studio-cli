@@ -6,6 +6,7 @@
 
 local HttpService = game:GetService("HttpService")
 local Selection = game:GetService("Selection")
+local LogService = game:GetService("LogService")
 
 local Store = require(script.Parent.Parent.State.Store)
 local Theme = require(script.Parent.Theme)
@@ -205,6 +206,31 @@ function ChatWidget:create()
     pcall(function()
         self:setupWebSocketListeners()
     end)
+
+    -- Stream LogService output to daemon
+    local logConnection = LogService.MessageOut:Connect(function(message, messageType)
+        -- Only send relevant logs (skip internal Roblox stuff)
+        if message:match("^%[DetAI%]") or message:match("^%[Studio%]") then
+            return -- Already sent via HTTP
+        end
+
+        -- Send print/warn/error to daemon
+        local level = "print"
+        if messageType == Enum.MessageType.MessageWarning then
+            level = "warn"
+        elseif messageType == Enum.MessageType.MessageError then
+            level = "error"
+        end
+
+        pcall(function()
+            HttpService:PostAsync(
+                "http://127.0.0.1:4849/log",
+                HttpService:JSONEncode({ level = "studio:" .. level, message = message }),
+                Enum.HttpContentType.ApplicationJson
+            )
+        end)
+    end)
+    table.insert(self.connections, logConnection)
 end
 
 -- Set up WebSocket event listeners for live streaming
@@ -215,13 +241,12 @@ function ChatWidget:setupWebSocketListeners()
     end
     wsUnsubscribers = {}
 
-    -- Listen for agent log messages
+    -- Listen for agent log messages - only show errors
     table.insert(wsUnsubscribers, DaemonClient.onEvent("run.log", function(data)
         if data.runId ~= activeRunId then return end
-
         local message = data.message or ""
-        -- Only show errors - hide verbose tool logs
-        if message:match("^Error:") then
+        -- Only show errors, skip everything else (Completed shown in run.done)
+        if message:match("^Error:") and not message:match("^Completed:") then
             Store.addMessage({
                 id = HttpService:GenerateGUID(false),
                 type = "system",
@@ -229,7 +254,6 @@ function ChatWidget:setupWebSocketListeners()
                 timestamp = data.timestamp and math.floor(data.timestamp / 1000) or os.time()
             })
         end
-        -- Skip: Tool:, Writing:, Reading:, Bash:, Completed: (shown in run.done)
     end))
 
     -- Listen for agent progress updates
@@ -323,6 +347,40 @@ function ChatWidget:setupWebSocketListeners()
         end)
     end
 
+    -- Start polling for exec commands if WS not connected
+    if not DaemonClient.isWebSocketConnected() then
+        sendLog("info", "WS not connected, starting HTTP polling for exec")
+        task.spawn(function()
+            while true do
+                task.wait(0.5)
+                local ok, result = DaemonClient.request("GET", "/exec/pending", nil)
+                if ok and result and result.code and result.code ~= "" then
+                    sendLog("info", "Got exec via polling")
+                    -- Dispatch to our local handler
+                    local code = result.code
+                    self:setStatus("Executing", Theme.Colors.Primary, true)
+
+                    local execOk, execResult = pcall(function()
+                        local fn, err = loadstring(code)
+                        if not fn then error("Syntax error: " .. tostring(err)) end
+                        return fn()
+                    end)
+
+                    if execOk then
+                        sendLog("info", "Polling exec success")
+                        postExecResult(true, tostring(execResult), nil, code)
+                        self:setStatus("Done", Theme.Colors.Success)
+                        task.delay(1, function() self:setStatus("") end)
+                    else
+                        sendLog("error", "Polling exec failed: " .. tostring(execResult))
+                        postExecResult(false, nil, tostring(execResult), code)
+                        self:setStatus("Error", Theme.Colors.Error)
+                    end
+                end
+            end
+        end)
+    end
+
     -- Listen for studio.exec commands - execute Lua code directly
     table.insert(wsUnsubscribers, DaemonClient.onEvent("studio.exec", function(data)
         sendLog("info", "Received studio.exec event")
@@ -334,7 +392,7 @@ function ChatWidget:setupWebSocketListeners()
         end
 
         sendLog("info", "Code to execute: " .. code:sub(1, 100))
-        self:setStatus("Executing...", Theme.Colors.Primary)
+        self:setStatus("Executing", Theme.Colors.Primary, true)
 
         -- Execute the code in Studio
         local ok, result = pcall(function()
@@ -365,11 +423,45 @@ function ChatWidget:setupWebSocketListeners()
     end))
 end
 
--- Update status indicator
-function ChatWidget:setStatus(text: string, color: Color3?)
-    if self.elements.statusLabel then
-        self.elements.statusLabel.Text = text
-        self.elements.statusLabel.TextColor3 = color or Theme.Colors.TextDim
+-- Status animation state
+local statusAnimThread: thread? = nil
+
+-- Update status indicator with optional animation
+function ChatWidget:setStatus(text: string, color: Color3?, animate: boolean?)
+    if not self.elements.statusLabel then return end
+
+    -- Stop any existing animation
+    if statusAnimThread then
+        task.cancel(statusAnimThread)
+        statusAnimThread = nil
+    end
+
+    self.elements.statusLabel.Text = text
+    self.elements.statusLabel.TextColor3 = color or Theme.Colors.TextDim
+    self.elements.statusLabel.TextTransparency = 0
+
+    -- Animate if requested (pulse effect for running states)
+    if animate and text ~= "" then
+        statusAnimThread = task.spawn(function()
+            local label = self.elements.statusLabel
+            local dots = 0
+            local baseText = text:gsub("%.+$", "") -- Remove trailing dots
+
+            while label and label.Parent do
+                -- Pulse transparency
+                for i = 0, 10 do
+                    if not label or not label.Parent then break end
+                    label.TextTransparency = 0.3 * math.sin(i * math.pi / 10)
+                    task.wait(0.05)
+                end
+
+                -- Animate dots
+                dots = (dots % 3) + 1
+                if label and label.Parent then
+                    label.Text = baseText .. string.rep(".", dots)
+                end
+            end
+        end)
     end
 end
 
@@ -581,7 +673,7 @@ function ChatWidget:runAgentTask(taskText: string)
     end
 
     local selectionContext = self:getSelectionContext()
-    self:setStatus("Starting...", Theme.Colors.Primary)
+    self:setStatus("Starting", Theme.Colors.Primary, true)
 
     task.spawn(function()
         local ok, result = DaemonClient.agentRun({
@@ -594,7 +686,7 @@ function ChatWidget:runAgentTask(taskText: string)
 
         if ok and result and result.runId then
             activeRunId = result.runId
-            self:setStatus("Running...", Theme.Colors.Primary)
+            self:setStatus("Running", Theme.Colors.Primary, true)
 
             -- Only use polling if WebSocket is not connected
             if not DaemonClient.isWebSocketConnected() then
@@ -651,26 +743,17 @@ function ChatWidget:startStatusPolling(runId: string)
             -- Check if done
             if status.state == "done" then
                 activeRunId = nil
+                self:setStatus("")
 
                 local summary = status.summary or "Task completed"
-                local filesChanged = status.filesChanged or {}
 
                 Store.addMessage({
                     id = HttpService:GenerateGUID(false),
                     type = "assistant",
-                    content = summary .. "\n\nFiles changed: " .. #filesChanged,
+                    content = summary,
                     cardType = "ResultCard",
                     timestamp = os.time()
                 })
-
-                if #filesChanged > 0 then
-                    Store.addMessage({
-                        id = HttpService:GenerateGUID(false),
-                        type = "system",
-                        content = "Use /pull to see changes and /apply to sync them to Studio.",
-                        timestamp = os.time()
-                    })
-                end
 
                 break
 

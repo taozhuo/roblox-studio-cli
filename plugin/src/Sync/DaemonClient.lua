@@ -294,23 +294,45 @@ local function handleWsMessage(message: string)
     end
 end
 
+-- Log to daemon via HTTP
+local function wsLog(msg: string)
+    pcall(function()
+        HttpService:PostAsync(
+            "http://127.0.0.1:4849/log",
+            HttpService:JSONEncode({ level = "ws", message = msg }),
+            Enum.HttpContentType.ApplicationJson
+        )
+    end)
+end
+
 function DaemonClient.connectWebSocket(): boolean
+    wsLog("connectWebSocket called")
+
     if wsClient and wsConnected then
-        return true -- Already connected
+        wsLog("Already connected, skipping")
+        return true
     end
 
-    -- Check if WebSocket API is supported (only check once)
+    -- Reset state for fresh connection
+    if wsClient then
+        pcall(function() wsClient:Close() end)
+        wsClient = nil
+        task.wait(0.5) -- Give time for cleanup
+    end
+    wsConnected = false
+
+    -- Check if WebSocket API is supported
     if wsSupported == false then
+        wsLog("WebSocket previously failed, skipping")
         return false
     end
 
     if wsSupported == nil then
-        -- Test if the API exists
         local testOk = pcall(function()
             local _ = Enum.WebStreamClientType.WebSocket
         end)
         if not testOk then
-            warn("[DetAI] WebSocket not supported in this Studio version - using HTTP polling")
+            wsLog("WebSocket enum not found")
             wsSupported = false
             return false
         end
@@ -318,70 +340,61 @@ function DaemonClient.connectWebSocket(): boolean
     end
 
     local state = Store.getState()
-    -- Convert HTTP URL to WS URL
     local wsUrl = state.daemonUrl:gsub("^http://", "ws://"):gsub("^https://", "wss://") .. "/ws"
 
-    print("[DetAI] Connecting WebSocket to:", wsUrl)
+    -- Try to create with retries (old clients may need time to clean up)
+    local client = nil
+    for attempt = 1, 3 do
+        wsLog("Creating WebSocket (attempt " .. attempt .. ")")
 
-    local ok, client = pcall(function()
-        return HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
-            Url = wsUrl
-        })
-    end)
+        local ok, result = pcall(function()
+            return HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
+                Url = wsUrl
+            })
+        end)
 
-    if not ok or not client then
-        warn("[DetAI] Failed to create WebSocket client:", tostring(client))
-        wsSupported = false -- Mark as not supported
+        if ok and result then
+            client = result
+            break
+        else
+            wsLog("Attempt " .. attempt .. " failed: " .. tostring(result))
+            if attempt < 3 then
+                task.wait(1) -- Wait before retry
+            end
+        end
+    end
+
+    if not client then
+        wsLog("All attempts failed")
         return false
     end
 
+    wsLog("Client created")
     wsClient = client
 
     -- Set up event handlers
-    local msgOk = pcall(function()
-        client.MessageReceived:Connect(function(message: string)
-            handleWsMessage(message)
-        end)
+    client.Opened:Connect(function()
+        wsLog("Opened")
     end)
 
-    local discOk = pcall(function()
-        client.Disconnected:Connect(function(reason: string)
-            print("[DetAI] WebSocket disconnected:", reason)
-            wsConnected = false
-            wsClient = nil
-        end)
+    client.MessageReceived:Connect(function(message: string)
+        wsLog("Message received")
+        handleWsMessage(message)
     end)
 
-    if not msgOk or not discOk then
-        warn("[DetAI] Failed to set up WebSocket handlers")
+    client.Closed:Connect(function()
+        wsLog("Closed")
+        wsConnected = false
         wsClient = nil
-        wsSupported = false
-        return false
-    end
-
-    -- Connect
-    local connectOk, connectErr = pcall(function()
-        client:Connect()
     end)
 
-    if not connectOk then
-        warn("[DetAI] WebSocket connect failed:", tostring(connectErr))
-        wsClient = nil
-        return false
-    end
+    client.Error:Connect(function(err)
+        wsLog("Error: " .. tostring(err))
+    end)
 
-    -- Send auth message
-    local token = state.daemonToken
-    if token and token ~= "" then
-        local authOk = pcall(function()
-            client:Send(jsonEncode({ type = "auth", token = token }) or "")
-        end)
-        if not authOk then
-            warn("[DetAI] Failed to send auth message")
-        end
-    else
-        print("[DetAI] No daemon token configured - use /token command to set it")
-    end
+    -- Connection is ready immediately per Roblox docs
+    wsConnected = true
+    wsLog("Connected")
 
     return true
 end
