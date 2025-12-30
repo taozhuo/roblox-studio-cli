@@ -3,3 +3,8 @@ node_modules/
 *.rbxl
 *.rbxlx
 .DS_Store
+
+# DetAI runtime
+.env
+detai-repo/
+daemon/detai-repo/

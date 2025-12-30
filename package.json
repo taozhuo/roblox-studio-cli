@@ -1,20 +1,26 @@
 {
-  "name": "studioctl",
-  "version": "0.1.0",
-  "description": "CLI tool to control Roblox Studio from the terminal",
+  "name": "roblox-studio-cli",
+  "version": "0.2.0",
+  "description": "DetAI - CLI and daemon for AI-powered Roblox Studio development",
   "type": "module",
   "scripts": {
     "server": "node server/index.js",
+    "daemon": "node daemon/index.js",
     "cli": "node cli/index.js",
-    "build:plugin": "rojo build plugin.project.json -o studioctl.rbxm",
-    "sync:plugin": "rojo build plugin.project.json -o \"$HOME/Documents/Roblox/Plugins/studioctl.rbxm\""
+    "build:plugin": "rojo build plugin.project.json -o DetAI.rbxm",
+    "sync:plugin": "rojo build plugin.project.json -o \"$HOME/Documents/Roblox/Plugins/DetAI.rbxm\""
   },
   "bin": {
     "studioctl": "./cli/index.js"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
     "chalk": "^5.3.0",
+    "chokidar": "^3.5.3",
     "commander": "^12.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
     "ws": "^8.18.0"
   },
   "engines": {
