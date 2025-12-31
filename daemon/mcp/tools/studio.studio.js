@@ -1,3 +1,9 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
+const TAURI_PORT = 4850;
+const TAURI_BASE_URL = `http://127.0.0.1:${TAURI_PORT}`;
+
 /**
  * Studio Tools - Plugin-level Studio features
  *
@@ -6,7 +12,22 @@
  * - Open script at line
  * - Open documents
  * - Debugger/breakpoints
+ * - Viewport capture (via Tauri helper)
+ * - Speech recognition/TTS (via Tauri helper)
  */
+
+/**
+ * Call the Tauri helper app
+ */
+async function callTauri(endpoint, options = {}) {
+  const url = `${TAURI_BASE_URL}${endpoint}`;
+  try {
+    const response = await fetch(url, options);
+    return response;
+  } catch (error) {
+    throw new Error(`Tauri helper not running. Start DetAI Desktop app. (${error.message})`);
+  }
+}
 
 export function registerStudioTools(registerTool, callPlugin) {
   // studio.getActiveScript - Get currently active script in editor
@@ -166,4 +187,63 @@ export function registerStudioTools(registerTool, callPlugin) {
   }, async (params) => {
     return await callPlugin('studio.debug.clearAllBreakpoints', params);
   });
+
+  // ============ Viewport Capture Tools ============
+
+  // studio.captureViewport - Capture Roblox Studio viewport screenshot
+  registerTool('studio.captureViewport', {
+    description: 'Capture a screenshot of the Roblox Studio viewport using ScreenCaptureKit. Requires DetAI Desktop helper app to be running.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        outputPath: {
+          type: 'string',
+          description: 'Optional output path for the screenshot. Defaults to detai-repo/viewport.png'
+        }
+      },
+      required: []
+    }
+  }, async (params) => {
+    try {
+      const outputPath = params.outputPath || path.join(process.cwd(), 'detai-repo', 'viewport.png');
+
+      // Ensure directory exists
+      const dir = path.dirname(outputPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      // Call Tauri helper for screenshot
+      const response = await callTauri('/capture');
+
+      if (!response.ok) {
+        const error = await response.json();
+        return {
+          success: false,
+          error: error.error || 'Capture failed',
+          code: error.code || 'UNKNOWN',
+          hint: 'Make sure DetAI Desktop is running and has screen recording permission'
+        };
+      }
+
+      // Get PNG data and save to file
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      fs.writeFileSync(outputPath, buffer);
+
+      return {
+        success: true,
+        path: outputPath,
+        size: buffer.length,
+        message: 'Viewport captured successfully via ScreenCaptureKit'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        hint: 'Make sure DetAI Desktop app is running'
+      };
+    }
+  });
+
 }

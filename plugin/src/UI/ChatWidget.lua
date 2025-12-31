@@ -1,7 +1,7 @@
 --!strict
 --[[
     Chat Widget UI
-    Slack-like chat interface for AI interactions with Claude Agent SDK
+    Unified interface: Chat + Settings (Sync) + Speech
 ]]
 
 local HttpService = game:GetService("HttpService")
@@ -20,11 +20,14 @@ ChatWidget.__index = ChatWidget
 
 -- Active agent run tracking
 local activeRunId: string? = nil
-local pollConnection: thread? = nil -- Fallback polling if WebSocket unavailable
+local pollConnection: thread? = nil
 local wsUnsubscribers: {() -> ()} = {}
 
 -- DevTools state
 local isDrawingPath: boolean = false
+
+-- Settings panel state
+local settingsPanelVisible: boolean = false
 
 function ChatWidget.new(plugin: Plugin): ChatWidget
     local self = setmetatable({}, ChatWidget)
@@ -50,7 +53,7 @@ function ChatWidget:create()
     )
 
     self.widget = self.plugin:CreateDockWidgetPluginGui("DetAI_Chat", widgetInfo)
-    self.widget.Title = "DetAI Chat"
+    self.widget.Title = "DetAI"
     self.widget.Name = "DetAI_Chat"
 
     -- Main container
@@ -78,23 +81,193 @@ function ChatWidget:create()
         textSize = Theme.Sizes.TextLarge
     })
 
-    -- Status indicator (right side of header)
+    -- Status indicator (center of header)
     local statusLabel = Theme.createLabel({
         parent = header,
         text = "",
         position = UDim2.new(0, 60, 0, 0),
-        size = UDim2.new(1, -70, 1, 0),
+        size = UDim2.new(1, -120, 1, 0),
         textSize = Theme.Sizes.TextSmall,
         textColor = Theme.Colors.TextDim
     })
     statusLabel.TextXAlignment = Enum.TextXAlignment.Left
     self.elements.statusLabel = statusLabel
 
+    -- Settings button (gear icon) - right side
+    local settingsBtn = Instance.new("TextButton")
+    settingsBtn.Name = "SettingsBtn"
+    settingsBtn.Text = "⚙"
+    settingsBtn.Font = Enum.Font.GothamBold
+    settingsBtn.TextSize = 18
+    settingsBtn.TextColor3 = Theme.Colors.TextMuted
+    settingsBtn.BackgroundTransparency = 1
+    settingsBtn.Size = UDim2.new(0, 30, 0, 30)
+    settingsBtn.Position = UDim2.new(1, -35, 0.5, -15)
+    settingsBtn.Parent = header
+    self.elements.settingsBtn = settingsBtn
+
+    settingsBtn.MouseButton1Click:Connect(function()
+        self:toggleSettingsPanel()
+    end)
+
+    -- Connection status dot (next to gear)
+    local statusDot = Instance.new("Frame")
+    statusDot.Name = "StatusDot"
+    statusDot.BackgroundColor3 = Theme.Colors.Disconnected
+    statusDot.Size = UDim2.new(0, 8, 0, 8)
+    statusDot.Position = UDim2.new(1, -45, 0.5, -4)
+    statusDot.Parent = header
+    self.elements.statusDot = statusDot
+
+    local dotCorner = Instance.new("UICorner")
+    dotCorner.CornerRadius = UDim.new(1, 0)
+    dotCorner.Parent = statusDot
+
+    -- Settings Panel (initially hidden)
+    local settingsPanel = Instance.new("Frame")
+    settingsPanel.Name = "SettingsPanel"
+    settingsPanel.BackgroundColor3 = Theme.Colors.Surface
+    settingsPanel.BorderSizePixel = 0
+    settingsPanel.Size = UDim2.new(1, -16, 0, 180)
+    settingsPanel.Position = UDim2.new(0, 8, 0, Theme.Sizes.HeaderHeight + 8)
+    settingsPanel.Visible = false
+    settingsPanel.ZIndex = 10
+    settingsPanel.Parent = container
+    self.elements.settingsPanel = settingsPanel
+
+    local settingsCorner = Instance.new("UICorner")
+    settingsCorner.CornerRadius = UDim.new(0, Theme.Sizes.BorderRadius)
+    settingsCorner.Parent = settingsPanel
+
+    local settingsPadding = Instance.new("UIPadding")
+    settingsPadding.PaddingTop = UDim.new(0, 12)
+    settingsPadding.PaddingBottom = UDim.new(0, 12)
+    settingsPadding.PaddingLeft = UDim.new(0, 12)
+    settingsPadding.PaddingRight = UDim.new(0, 12)
+    settingsPadding.Parent = settingsPanel
+
+    local settingsLayout = Instance.new("UIListLayout")
+    settingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    settingsLayout.Padding = UDim.new(0, 8)
+    settingsLayout.Parent = settingsPanel
+
+    -- Settings: Title
+    local settingsTitle = Theme.createLabel({
+        parent = settingsPanel,
+        text = "Settings & Sync",
+        font = Theme.Fonts.Bold,
+        textSize = Theme.Sizes.TextNormal
+    })
+    settingsTitle.LayoutOrder = 0
+
+    -- Settings: Connection status
+    local connLabel = Theme.createLabel({
+        parent = settingsPanel,
+        text = "Disconnected",
+        textSize = Theme.Sizes.TextSmall,
+        textColor = Theme.Colors.TextMuted
+    })
+    connLabel.LayoutOrder = 1
+    self.elements.connLabel = connLabel
+
+    -- Settings: Sync buttons row
+    local syncRow = Instance.new("Frame")
+    syncRow.Name = "SyncRow"
+    syncRow.BackgroundTransparency = 1
+    syncRow.Size = UDim2.new(1, 0, 0, 28)
+    syncRow.LayoutOrder = 2
+    syncRow.Parent = settingsPanel
+
+    local syncLayout = Instance.new("UIListLayout")
+    syncLayout.FillDirection = Enum.FillDirection.Horizontal
+    syncLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    syncLayout.Padding = UDim.new(0, 6)
+    syncLayout.Parent = syncRow
+
+    -- Export button
+    local exportBtn = Theme.createButton({
+        parent = syncRow,
+        text = "Export",
+        size = UDim2.new(0, 70, 1, 0),
+        color = Theme.Colors.Success,
+        onClick = function()
+            task.spawn(function() Export.exportAll() end)
+        end
+    })
+    exportBtn.LayoutOrder = 1
+
+    -- Pull button
+    local pullBtn = Theme.createButton({
+        parent = syncRow,
+        text = "Pull",
+        size = UDim2.new(0, 60, 1, 0),
+        onClick = function()
+            task.spawn(function() Import.pullChanges() end)
+        end
+    })
+    pullBtn.LayoutOrder = 2
+
+    -- Apply button
+    local applyBtn = Theme.createButton({
+        parent = syncRow,
+        text = "Apply",
+        size = UDim2.new(0, 60, 1, 0),
+        color = Theme.Colors.Primary,
+        onClick = function()
+            task.spawn(function() Import.applyChanges() end)
+        end
+    })
+    applyBtn.LayoutOrder = 3
+
+    -- Reconnect button
+    local reconnectBtn = Theme.createButton({
+        parent = syncRow,
+        text = "Reconnect",
+        size = UDim2.new(0, 80, 1, 0),
+        onClick = function()
+            task.spawn(function()
+                DaemonClient.disconnectWebSocket()
+                DaemonClient.connectFull()
+            end)
+        end
+    })
+    reconnectBtn.LayoutOrder = 4
+
+    -- Settings: Token input
+    local tokenLabel = Theme.createLabel({
+        parent = settingsPanel,
+        text = "Auth Token:",
+        textSize = Theme.Sizes.TextSmall,
+        textColor = Theme.Colors.TextMuted
+    })
+    tokenLabel.LayoutOrder = 3
+
+    local tokenInput = Theme.createInput({
+        parent = settingsPanel,
+        text = self.plugin:GetSetting("DaemonToken") or "",
+        placeholder = "Paste token from daemon console"
+    })
+    tokenInput.LayoutOrder = 4
+    self.elements.tokenInput = tokenInput
+
+    -- Save token on focus lost
+    tokenInput.FocusLost:Connect(function()
+        local token = tokenInput.Text
+        if token ~= "" then
+            self.plugin:SetSetting("DaemonToken", token)
+            Store.setDaemonConfig(Store.getState().daemonUrl, token)
+            task.spawn(function()
+                DaemonClient.disconnectWebSocket()
+                DaemonClient.connectFull()
+            end)
+        end
+    end)
+
     -- Messages area
     local messagesFrame = Instance.new("Frame")
     messagesFrame.Name = "MessagesFrame"
     messagesFrame.BackgroundTransparency = 1
-    messagesFrame.Size = UDim2.new(1, 0, 1, -Theme.Sizes.HeaderHeight - 110) -- Increased for DevTools row
+    messagesFrame.Size = UDim2.new(1, 0, 1, -Theme.Sizes.HeaderHeight - 100)
     messagesFrame.Position = UDim2.new(0, 0, 0, Theme.Sizes.HeaderHeight)
     messagesFrame.Parent = container
 
@@ -104,41 +277,48 @@ function ChatWidget:create()
     })
     self.elements.messagesScroll = messagesScroll
 
-    -- Composer area (expanded for DevTools row)
+    -- Composer area
     local composerFrame = Instance.new("Frame")
     composerFrame.Name = "ComposerFrame"
     composerFrame.BackgroundColor3 = Theme.Colors.BackgroundDark
     composerFrame.BorderSizePixel = 0
-    composerFrame.Size = UDim2.new(1, 0, 0, 110)
-    composerFrame.Position = UDim2.new(0, 0, 1, -110)
+    composerFrame.Size = UDim2.new(1, 0, 0, 100)
+    composerFrame.Position = UDim2.new(0, 0, 1, -100)
     composerFrame.Parent = container
 
     local composerPadding = Instance.new("UIPadding")
-    composerPadding.PaddingTop = UDim.new(0, Theme.Sizes.PaddingNormal)
-    composerPadding.PaddingBottom = UDim.new(0, Theme.Sizes.PaddingNormal)
-    composerPadding.PaddingLeft = UDim.new(0, Theme.Sizes.PaddingNormal)
-    composerPadding.PaddingRight = UDim.new(0, Theme.Sizes.PaddingNormal)
+    composerPadding.PaddingTop = UDim.new(0, 8)
+    composerPadding.PaddingBottom = UDim.new(0, 8)
+    composerPadding.PaddingLeft = UDim.new(0, 8)
+    composerPadding.PaddingRight = UDim.new(0, 8)
     composerPadding.Parent = composerFrame
+
+    -- Input row (input + mic button)
+    local inputRow = Instance.new("Frame")
+    inputRow.Name = "InputRow"
+    inputRow.BackgroundTransparency = 1
+    inputRow.Size = UDim2.new(1, 0, 0, 36)
+    inputRow.Parent = composerFrame
 
     -- Input box
     local inputBox = Instance.new("TextBox")
     inputBox.Name = "InputBox"
     inputBox.Text = ""
-    inputBox.PlaceholderText = "Type a task for Claude or /command..."
+    inputBox.PlaceholderText = "Type a task for Claude..."
     inputBox.Font = Theme.Fonts.Default
     inputBox.TextSize = Theme.Sizes.TextNormal
     inputBox.TextColor3 = Theme.Colors.Text
     inputBox.PlaceholderColor3 = Theme.Colors.TextDim
     inputBox.BackgroundColor3 = Theme.Colors.BackgroundLight
     inputBox.BorderSizePixel = 0
-    inputBox.Size = UDim2.new(1, 0, 0, 36)
+    inputBox.Size = UDim2.new(1, -44, 1, 0)
     inputBox.Position = UDim2.new(0, 0, 0, 0)
     inputBox.TextXAlignment = Enum.TextXAlignment.Left
     inputBox.TextYAlignment = Enum.TextYAlignment.Center
     inputBox.ClearTextOnFocus = false
-    inputBox.MultiLine = false  -- Single line so Enter submits
+    inputBox.MultiLine = false
     inputBox.TextWrapped = false
-    inputBox.Parent = composerFrame
+    inputBox.Parent = inputRow
     self.elements.inputBox = inputBox
 
     local inputCorner = Instance.new("UICorner")
@@ -146,48 +326,37 @@ function ChatWidget:create()
     inputCorner.Parent = inputBox
 
     local inputPadding = Instance.new("UIPadding")
-    inputPadding.PaddingTop = UDim.new(0, 8)
-    inputPadding.PaddingBottom = UDim.new(0, 8)
-    inputPadding.PaddingLeft = UDim.new(0, 8)
-    inputPadding.PaddingRight = UDim.new(0, 8)
+    inputPadding.PaddingLeft = UDim.new(0, 10)
+    inputPadding.PaddingRight = UDim.new(0, 10)
     inputPadding.Parent = inputBox
 
-    -- Quick actions
-    local actionsFrame = Instance.new("Frame")
-    actionsFrame.Name = "ActionsFrame"
-    actionsFrame.BackgroundTransparency = 1
-    actionsFrame.Size = UDim2.new(1, 0, 0, 24)
-    actionsFrame.Position = UDim2.new(0, 0, 0, 40)
-    actionsFrame.Parent = composerFrame
+    -- Mic button
+    local micBtn = Instance.new("TextButton")
+    micBtn.Name = "MicBtn"
+    micBtn.Text = "🎤"
+    micBtn.Font = Enum.Font.GothamBold
+    micBtn.TextSize = 18
+    micBtn.TextColor3 = Theme.Colors.TextMuted
+    micBtn.BackgroundColor3 = Theme.Colors.BackgroundLight
+    micBtn.BorderSizePixel = 0
+    micBtn.Size = UDim2.new(0, 36, 0, 36)
+    micBtn.Position = UDim2.new(1, -36, 0, 0)
+    micBtn.Parent = inputRow
+    self.elements.micBtn = micBtn
 
-    local actionsLayout = Instance.new("UIListLayout")
-    actionsLayout.FillDirection = Enum.FillDirection.Horizontal
-    actionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    actionsLayout.Padding = UDim.new(0, 4)
-    actionsLayout.Parent = actionsFrame
+    local micCorner = Instance.new("UICorner")
+    micCorner.CornerRadius = UDim.new(0, Theme.Sizes.BorderRadius)
+    micCorner.Parent = micBtn
 
-    -- Quick action chips
-    self:createChip(actionsFrame, "/export", 1, function()
-        self:handleCommand("/export")
+    micBtn.MouseButton1Click:Connect(function()
+        self:toggleSpeech()
     end)
 
-    self:createChip(actionsFrame, "/pull", 2, function()
-        self:handleCommand("/pull")
-    end)
-
-    self:createChip(actionsFrame, "/apply", 3, function()
-        self:handleCommand("/apply")
-    end)
-
-    self:createChip(actionsFrame, "/cancel", 4, function()
-        self:handleCommand("/cancel")
-    end)
-
-    -- DevTools row (positioned below quick actions)
+    -- DevTools row
     local devToolsFrame = Instance.new("Frame")
     devToolsFrame.Name = "DevToolsFrame"
     devToolsFrame.Size = UDim2.new(1, 0, 0, 24)
-    devToolsFrame.Position = UDim2.new(0, 0, 0, 66) -- Below actionsFrame (40 + 24 + 2 padding)
+    devToolsFrame.Position = UDim2.new(0, 0, 0, 44)
     devToolsFrame.BackgroundTransparency = 1
     devToolsFrame.Parent = composerFrame
 
@@ -202,15 +371,20 @@ function ChatWidget:create()
         self:capturePointer()
     end, Color3.fromRGB(80, 120, 200))
 
-    -- Draw Path button (toggles)
+    -- Draw Path button
     self.pathButton = self:createChip(devToolsFrame, "Draw Path", 2, function()
         self:togglePathDrawing()
     end, Color3.fromRGB(80, 160, 80))
 
-    -- Clear Path button
+    -- Clear button
     self:createChip(devToolsFrame, "Clear", 3, function()
         self:clearPath()
     end, Color3.fromRGB(160, 80, 80))
+
+    -- Help chip
+    self:createChip(devToolsFrame, "/help", 4, function()
+        self:handleCommand("/help")
+    end, Theme.Colors.TextMuted)
 
     -- Handle enter key
     inputBox.FocusLost:Connect(function(enterPressed)
@@ -222,32 +396,32 @@ function ChatWidget:create()
     -- Subscribe to store
     self.connections.storeSubscription = Store.subscribe(function(state)
         self:updateMessages(state.messages)
+        self:updateConnectionStatus(state)
     end)
 
     -- Initial update
     self:updateMessages(Store.getState().messages)
+    self:updateConnectionStatus(Store.getState())
 
-    -- Add welcome message
+    -- Welcome message
     Store.addMessage({
         id = HttpService:GenerateGUID(false),
         type = "system",
-        content = "Welcome to DetAI! Type a task for Claude or use commands:\n/export - Export scripts\n/pull - Pull changes\n/apply - Apply changes\n/cancel - Cancel running task",
+        content = "Welcome to DetAI! Type a task for Claude, use /help for commands, or click ⚙ for settings.",
         timestamp = os.time()
     })
 
-    -- Set up WebSocket event listeners for real-time updates (safe - won't crash if WS unavailable)
+    -- Set up WebSocket listeners
     pcall(function()
         self:setupWebSocketListeners()
     end)
 
-    -- Stream LogService output to daemon
+    -- Stream LogService output
     local logConnection = LogService.MessageOut:Connect(function(message, messageType)
-        -- Only send relevant logs (skip internal Roblox stuff)
         if message:match("^%[DetAI%]") or message:match("^%[Studio%]") then
-            return -- Already sent via HTTP
+            return
         end
 
-        -- Send print/warn/error to daemon
         local level = "print"
         if messageType == Enum.MessageType.MessageWarning then
             level = "warn"
@@ -266,20 +440,109 @@ function ChatWidget:create()
     table.insert(self.connections, logConnection)
 end
 
+-- Toggle settings panel visibility
+function ChatWidget:toggleSettingsPanel()
+    settingsPanelVisible = not settingsPanelVisible
+    self.elements.settingsPanel.Visible = settingsPanelVisible
+
+    -- Update gear color
+    self.elements.settingsBtn.TextColor3 = settingsPanelVisible
+        and Theme.Colors.Primary
+        or Theme.Colors.TextMuted
+end
+
+-- Update connection status
+function ChatWidget:updateConnectionStatus(state: Store.StoreState)
+    local statusColor = Theme.Colors.Disconnected
+    local statusText = "Disconnected"
+
+    if state.syncStatus == "connected" then
+        statusColor = Theme.Colors.Connected
+        statusText = "Connected"
+    elseif state.syncStatus == "connecting" then
+        statusColor = Theme.Colors.Syncing
+        statusText = "Connecting..."
+    elseif state.syncStatus == "syncing" then
+        statusColor = Theme.Colors.Syncing
+        statusText = "Syncing..."
+    elseif state.syncStatus == "error" then
+        statusColor = Theme.Colors.Error
+        statusText = "Error"
+    end
+
+    if self.elements.statusDot then
+        self.elements.statusDot.BackgroundColor3 = statusColor
+    end
+    if self.elements.connLabel then
+        self.elements.connLabel.Text = statusText
+        self.elements.connLabel.TextColor3 = statusColor
+    end
+end
+
+-- Toggle speech recognition
+function ChatWidget:toggleSpeech()
+    -- Call Tauri helper to start/stop speech
+    task.spawn(function()
+        local ok, result = pcall(function()
+            return HttpService:GetAsync("http://127.0.0.1:4850/speech/status")
+        end)
+
+        if not ok then
+            self:setStatus("Speech unavailable", Theme.Colors.Warning)
+            task.delay(2, function() self:setStatus("") end)
+            return
+        end
+
+        local status = HttpService:JSONDecode(result)
+
+        if status.listening then
+            -- Stop listening, get transcription
+            pcall(function()
+                HttpService:PostAsync("http://127.0.0.1:4850/speech/stop", "{}", Enum.HttpContentType.ApplicationJson)
+            end)
+            task.wait(0.3)
+
+            local transcriptOk, transcriptResult = pcall(function()
+                return HttpService:GetAsync("http://127.0.0.1:4850/speech/transcription")
+            end)
+
+            if transcriptOk then
+                local transcript = HttpService:JSONDecode(transcriptResult)
+                if transcript.text and transcript.text ~= "" then
+                    self.elements.inputBox.Text = transcript.text
+                    self:setStatus("", nil)
+                end
+            end
+
+            self.elements.micBtn.TextColor3 = Theme.Colors.TextMuted
+        else
+            -- Start listening
+            local startOk = pcall(function()
+                HttpService:PostAsync("http://127.0.0.1:4850/speech/listen", "{}", Enum.HttpContentType.ApplicationJson)
+            end)
+
+            if startOk then
+                self.elements.micBtn.TextColor3 = Theme.Colors.Error
+                self:setStatus("Listening...", Theme.Colors.Primary, true)
+            else
+                self:setStatus("Mic failed", Theme.Colors.Error)
+            end
+        end
+    end)
+end
+
 -- Set up WebSocket event listeners for live streaming
 function ChatWidget:setupWebSocketListeners()
-    -- Clean up any existing subscriptions
     for _, unsub in ipairs(wsUnsubscribers) do
         pcall(unsub)
     end
     wsUnsubscribers = {}
 
-    -- Listen for agent log messages - show Claude responses and errors
+    -- Listen for agent log messages
     table.insert(wsUnsubscribers, DaemonClient.onEvent("run.log", function(data)
         if data.runId ~= activeRunId then return end
         local message = data.message or ""
 
-        -- Show Claude's intermediate text (thinking before tool calls)
         if message:match("^Claude:") then
             local claudeText = message:gsub("^Claude: ", "")
             Store.addMessage({
@@ -288,7 +551,6 @@ function ChatWidget:setupWebSocketListeners()
                 content = claudeText,
                 timestamp = data.timestamp and math.floor(data.timestamp / 1000) or os.time()
             })
-        -- Show errors (but not Completed which is handled in run.done)
         elseif message:match("^Error:") and not message:match("^Completed:") then
             Store.addMessage({
                 id = HttpService:GenerateGUID(false),
@@ -299,7 +561,7 @@ function ChatWidget:setupWebSocketListeners()
         end
     end))
 
-    -- Listen for agent progress updates
+    -- Listen for agent progress
     table.insert(wsUnsubscribers, DaemonClient.onEvent("run.progress", function(data)
         if data.runId ~= activeRunId then return end
 
@@ -319,7 +581,7 @@ function ChatWidget:setupWebSocketListeners()
         if data.runId ~= activeRunId then return end
 
         activeRunId = nil
-        self:setStatus("")  -- Clear status
+        self:setStatus("")
 
         local summary = data.summary or "Task completed"
         local success = data.success
@@ -342,7 +604,7 @@ function ChatWidget:setupWebSocketListeners()
         end
     end))
 
-    -- Listen for repo changes (file watcher notifications)
+    -- Listen for repo changes
     table.insert(wsUnsubscribers, DaemonClient.onEvent("repo.changed", function(data)
         local revision = data.revision
         local files = data.files or {}
@@ -355,13 +617,13 @@ function ChatWidget:setupWebSocketListeners()
             Store.addMessage({
                 id = HttpService:GenerateGUID(false),
                 type = "system",
-                content = "Repo updated: " .. #files .. " file(s) changed. Use /pull to sync.",
+                content = "Repo updated: " .. #files .. " file(s) changed",
                 timestamp = os.time()
             })
         end
     end))
 
-    -- Helper to send logs to daemon
+    -- Helper functions
     local function sendLog(level, message)
         pcall(function()
             HttpService:PostAsync(
@@ -372,9 +634,6 @@ function ChatWidget:setupWebSocketListeners()
         end)
     end
 
-    sendLog("info", "ChatWidget WebSocket listeners setup")
-
-    -- Helper to post execution results to daemon (so Claude can see them)
     local function postExecResult(success, result, error, code)
         pcall(function()
             HttpService:PostAsync(
@@ -390,24 +649,17 @@ function ChatWidget:setupWebSocketListeners()
         end)
     end
 
-    -- Start polling for exec commands (only if WS not working)
+    -- Polling fallback for exec
     task.spawn(function()
-        task.wait(2) -- Give WS time to connect
-        if DaemonClient.isWebSocketConnected() then
-            sendLog("info", "WS connected, skipping HTTP polling")
-            return
-        end
-        sendLog("info", "WS not connected, starting HTTP polling for exec")
+        task.wait(2)
+        if DaemonClient.isWebSocketConnected() then return end
+
         while true do
             task.wait(0.5)
-            -- Stop polling if WS becomes connected
-            if DaemonClient.isWebSocketConnected() then
-                sendLog("info", "WS now connected, stopping polling")
-                break
-            end
+            if DaemonClient.isWebSocketConnected() then break end
+
             local ok, result = DaemonClient.request("GET", "/exec/pending", nil)
             if ok and result and result.code and result.code ~= "" then
-                sendLog("info", "Got exec via polling")
                 local code = result.code
                 self:setStatus("Executing", Theme.Colors.Primary, true)
 
@@ -418,12 +670,10 @@ function ChatWidget:setupWebSocketListeners()
                 end)
 
                 if execOk then
-                    sendLog("info", "Polling exec success")
                     postExecResult(true, tostring(execResult), nil, code)
                     self:setStatus("Done", Theme.Colors.Success)
                     task.delay(1, function() self:setStatus("") end)
                 else
-                    sendLog("error", "Polling exec failed: " .. tostring(execResult))
                     postExecResult(false, nil, tostring(execResult), code)
                     self:setStatus("Error", Theme.Colors.Error)
                 end
@@ -431,56 +681,40 @@ function ChatWidget:setupWebSocketListeners()
         end
     end)
 
-    -- Listen for studio.exec commands - execute Lua code directly
+    -- Listen for studio.exec commands
     table.insert(wsUnsubscribers, DaemonClient.onEvent("studio.exec", function(data)
-        sendLog("info", "Received studio.exec event")
-
         local code = data.code
-        if not code or code == "" then
-            sendLog("warn", "No code in studio.exec event")
-            return
-        end
+        if not code or code == "" then return end
 
-        sendLog("info", "Code to execute: " .. code:sub(1, 100))
         self:setStatus("Executing", Theme.Colors.Primary, true)
 
-        -- Execute the code in Studio
         local ok, result = pcall(function()
             local fn, err = loadstring(code)
-            if not fn then
-                error("Syntax error: " .. tostring(err))
-            end
+            if not fn then error("Syntax error: " .. tostring(err)) end
             return fn()
         end)
 
         if ok then
-            local resultStr = tostring(result)
-            sendLog("info", "Execution success: " .. resultStr)
-            postExecResult(true, resultStr, nil, code)
+            postExecResult(true, tostring(result), nil, code)
             self:setStatus("Done", Theme.Colors.Success)
-            -- Clear status after brief delay
             task.delay(1, function()
                 if self.elements.statusLabel and self.elements.statusLabel.Text == "Done" then
                     self:setStatus("")
                 end
             end)
         else
-            local errorStr = tostring(result)
-            sendLog("error", "Execution failed: " .. errorStr)
-            postExecResult(false, nil, errorStr, code)
-            self:setStatus("Error: " .. errorStr:sub(1, 30), Theme.Colors.Error)
+            postExecResult(false, nil, tostring(result), code)
+            self:setStatus("Error: " .. tostring(result):sub(1, 30), Theme.Colors.Error)
         end
     end))
 end
 
--- Status animation state
+-- Status animation
 local statusAnimThread: thread? = nil
 
--- Update status indicator with optional animation
 function ChatWidget:setStatus(text: string, color: Color3?, animate: boolean?)
     if not self.elements.statusLabel then return end
 
-    -- Stop any existing animation
     if statusAnimThread then
         task.cancel(statusAnimThread)
         statusAnimThread = nil
@@ -490,22 +724,18 @@ function ChatWidget:setStatus(text: string, color: Color3?, animate: boolean?)
     self.elements.statusLabel.TextColor3 = color or Theme.Colors.TextDim
     self.elements.statusLabel.TextTransparency = 0
 
-    -- Animate if requested (pulse effect for running states)
     if animate and text ~= "" then
         statusAnimThread = task.spawn(function()
             local label = self.elements.statusLabel
             local dots = 0
-            local baseText = text:gsub("%.+$", "") -- Remove trailing dots
+            local baseText = text:gsub("%.+$", "")
 
             while label and label.Parent do
-                -- Pulse transparency
                 for i = 0, 10 do
                     if not label or not label.Parent then break end
                     label.TextTransparency = 0.3 * math.sin(i * math.pi / 10)
                     task.wait(0.05)
                 end
-
-                -- Animate dots
                 dots = (dots % 3) + 1
                 if label and label.Parent then
                     label.Text = baseText .. string.rep(".", dots)
@@ -556,7 +786,6 @@ function ChatWidget:handleInput()
 
         self.elements.inputBox.Text = ""
 
-        -- Add user message
         Store.addMessage({
             id = HttpService:GenerateGUID(false),
             type = "user",
@@ -564,25 +793,15 @@ function ChatWidget:handleInput()
             timestamp = os.time()
         })
 
-        -- Handle commands vs agent tasks
         if text:sub(1, 1) == "/" then
             self:handleCommand(text)
         else
-            -- Send to agent
             self:runAgentTask(text)
         end
     end)
 
     if not ok then
         warn("[DetAI] handleInput error:", tostring(err))
-        -- Log to daemon
-        pcall(function()
-            HttpService:PostAsync(
-                "http://127.0.0.1:4849/log/error",
-                HttpService:JSONEncode({ source = "handleInput", error = tostring(err) }),
-                Enum.HttpContentType.ApplicationJson
-            )
-        end)
     end
 end
 
@@ -591,134 +810,52 @@ function ChatWidget:handleCommand(cmd: string)
     local command = parts[1]:lower()
 
     if command == "/export" then
-        task.spawn(function()
-            Export.exportAll()
-        end)
+        task.spawn(function() Export.exportAll() end)
     elseif command == "/pull" then
-        task.spawn(function()
-            Import.pullChanges()
-        end)
+        task.spawn(function() Import.pullChanges() end)
     elseif command == "/apply" then
-        task.spawn(function()
-            Import.applyChanges()
-        end)
+        task.spawn(function() Import.applyChanges() end)
     elseif command == "/cancel" then
         self:cancelAgentTask()
     elseif command == "/status" then
         self:checkAgentStatus()
-    elseif command == "/token" then
-        local token = parts[2]
-        if token and token ~= "" then
-            Store.setDaemonConfig(Store.getState().daemonUrl, token)
-            -- Save to plugin settings
-            self.plugin:SetSetting("DaemonToken", token)
-
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = "Token saved. Reconnecting...",
-                timestamp = os.time()
-            })
-
-            -- Reconnect with new token
-            task.spawn(function()
-                DaemonClient.disconnectWebSocket()
-                DaemonClient.connectFull()
-            end)
-        else
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = "Usage: /token <your-token>\nGet your token from the daemon console output.",
-                timestamp = os.time()
-            })
-        end
-    elseif command == "/connect" then
-        Store.addMessage({
-            id = HttpService:GenerateGUID(false),
-            type = "system",
-            content = "Reconnecting to daemon...",
-            timestamp = os.time()
-        })
-        task.spawn(function()
-            DaemonClient.disconnectWebSocket()
-            local ok = DaemonClient.connectFull()
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = ok and "Connected!" or "Connection failed",
-                timestamp = os.time()
-            })
-        end)
-    elseif command == "/preview" then
-        task.spawn(function()
-            local selected = Selection:Get()
-            local scope = nil
-            local scopeArg = parts[2] and parts[2]:lower()
-
-            if scopeArg == "selection" then
-                scope = "selection"
-            elseif scopeArg == "descendants" then
-                scope = "descendants"
-            end
-
-            local preview = Export.preview(scope, selected)
-            local formatted = Export.formatPreview(preview)
-
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = formatted,
-                timestamp = os.time()
-            })
-        end)
     elseif command == "/help" then
         Store.addMessage({
             id = HttpService:GenerateGUID(false),
             type = "system",
-            content = [[Available commands:
-/export - Export all scripts to local repo
-/preview [selection|descendants] - Preview what will be exported
-/pull - Pull changes from local repo
-/apply - Apply pending changes
-/cancel - Cancel running agent task
-/status - Check agent task status
-/token <token> - Set daemon auth token
-/connect - Reconnect to daemon
-/help - Show this help
+            content = [[Commands:
+/export - Export scripts
+/pull - Pull changes
+/apply - Apply changes
+/cancel - Cancel task
+/status - Task status
+/help - This help
 
-Tags for filtering:
-- DetAI_NoExport: Skip instance during export
-- DetAI_NoModify: Export but prevent AI modifications
-- DetAI_ContextOnly: Include in context but don't write to files
-
-Or just type a task for Claude!]],
+Click ⚙ for sync settings
+Type anything else to ask Claude!]],
             timestamp = os.time()
         })
     else
         Store.addMessage({
             id = HttpService:GenerateGUID(false),
             type = "system",
-            content = "Unknown command: " .. command .. ". Type /help for available commands.",
+            content = "Unknown: " .. command .. ". Type /help",
             timestamp = os.time()
         })
     end
 end
 
--- Get selected instances as context
+-- Get selection context
 function ChatWidget:getSelectionContext(): {string}
     local selected = Selection:Get()
     local paths = {}
-
     for _, inst in ipairs(selected) do
-        local path = inst:GetFullName()
-        table.insert(paths, path)
+        table.insert(paths, inst:GetFullName())
     end
-
     return paths
 end
 
--- Get API info for a class using ReflectionService
+-- Get class API
 function ChatWidget:getClassAPI(className: string): string?
     local ok, props = pcall(function()
         return ReflectionService:GetPropertiesOfClass(className)
@@ -740,10 +877,9 @@ function ChatWidget:getClassAPI(className: string): string?
     return table.concat(lines, "\n")
 end
 
--- Get common Roblox API context for Claude
 function ChatWidget:getRobloxAPIContext(): string
     local commonClasses = {"Part", "Model", "SpawnLocation", "Terrain", "BasePart", "MeshPart", "Script", "LocalScript", "ModuleScript"}
-    local lines = {"=== Roblox API Reference (from ReflectionService) ===\n"}
+    local lines = {"=== Roblox API Reference ===\n"}
 
     for _, className in ipairs(commonClasses) do
         local api = self:getClassAPI(className)
@@ -756,11 +892,9 @@ function ChatWidget:getRobloxAPIContext(): string
     return table.concat(lines, "\n")
 end
 
--- Get path and pointer context from DevTools
 function ChatWidget:getPathAndPointerContext(): {path: any?, pointer: any?}
     local context = { path = nil, pointer = nil }
 
-    -- Get path data
     pcall(function()
         local response = HttpService:PostAsync(
             "http://127.0.0.1:4849/devtools/call",
@@ -773,7 +907,6 @@ function ChatWidget:getPathAndPointerContext(): {path: any?, pointer: any?}
         end
     end)
 
-    -- Get last pointer data
     pcall(function()
         local response = HttpService:PostAsync(
             "http://127.0.0.1:4849/devtools/call",
@@ -789,10 +922,9 @@ function ChatWidget:getPathAndPointerContext(): {path: any?, pointer: any?}
     return context
 end
 
--- Run agent task with progress tracking
 function ChatWidget:runAgentTask(taskText: string)
     if activeRunId then
-        self:setStatus("Task already running", Theme.Colors.Warning)
+        self:setStatus("Task running", Theme.Colors.Warning)
         return
     end
 
@@ -801,25 +933,22 @@ function ChatWidget:runAgentTask(taskText: string)
     local pathPointerContext = self:getPathAndPointerContext()
     self:setStatus("Starting", Theme.Colors.Primary, true)
 
-    -- Build context notes
-    local notes = "This is a Roblox game project with Lua scripts. Use the API Reference to know what properties exist."
+    local notes = "Roblox game project with Lua scripts."
 
     if pathPointerContext.path then
         local points = pathPointerContext.path.points or {}
-        notes = notes .. "\n\nUSER DREW A PATH with " .. #points .. " points. The path coordinates are:\n"
+        notes = notes .. "\n\nUSER DREW A PATH with " .. #points .. " points:\n"
         for i, pt in ipairs(points) do
             notes = notes .. string.format("  Point %d: (%.1f, %.1f, %.1f)\n", i, pt.position.x, pt.position.y, pt.position.z)
         end
-        notes = notes .. "Use these coordinates to place objects along the path or within the area defined by the path."
     end
 
     if pathPointerContext.pointer then
         local pos = pathPointerContext.pointer.position
-        notes = notes .. string.format("\n\nUSER MARKED A POSITION at (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z)
+        notes = notes .. string.format("\n\nUSER MARKED POSITION at (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z)
         if pathPointerContext.pointer.instance then
-            notes = notes .. " on " .. (pathPointerContext.pointer.instance.path or pathPointerContext.pointer.instance.name or "unknown")
+            notes = notes .. " on " .. (pathPointerContext.pointer.instance.path or "unknown")
         end
-        notes = notes .. ". Use this position when the user says 'here' or 'at this spot'."
     end
 
     task.spawn(function()
@@ -838,41 +967,31 @@ function ChatWidget:runAgentTask(taskText: string)
             activeRunId = result.runId
             self:setStatus("Running", Theme.Colors.Primary, true)
 
-            -- Only use polling if WebSocket is not connected
             if not DaemonClient.isWebSocketConnected() then
                 self:startStatusPolling(result.runId)
             end
         else
-            self:setStatus("Failed to start", Theme.Colors.Error)
+            self:setStatus("Failed", Theme.Colors.Error)
         end
     end)
 end
 
--- Poll agent status
 function ChatWidget:startStatusPolling(runId: string)
-    if pollConnection then
-        task.cancel(pollConnection)
-    end
+    if pollConnection then task.cancel(pollConnection) end
 
     pollConnection = task.spawn(function()
         local lastLogCursor = "0"
 
         while activeRunId == runId do
-            task.wait(2) -- Poll every 2 seconds
+            task.wait(2)
 
-            -- Get status
             local ok, status = DaemonClient.agentStatus(runId)
+            if not ok or not status then break end
 
-            if not ok or not status then
-                break
-            end
-
-            -- Get new logs
             local logOk, logs = DaemonClient.agentLogs(runId, lastLogCursor)
             if logOk and logs and logs.lines then
                 for _, logEntry in ipairs(logs.lines) do
                     if logEntry.message and not logEntry.message:match("^Task:") then
-                        -- Only show interesting logs
                         if logEntry.message:match("^Writing:") or
                            logEntry.message:match("^Reading:") or
                            logEntry.message:match("^Bash:") or
@@ -890,60 +1009,38 @@ function ChatWidget:startStatusPolling(runId: string)
                 lastLogCursor = logs.nextCursor
             end
 
-            -- Check if done
             if status.state == "done" then
                 activeRunId = nil
                 self:setStatus("")
-
-                local summary = status.summary or "Task completed"
-
                 Store.addMessage({
                     id = HttpService:GenerateGUID(false),
                     type = "assistant",
-                    content = summary,
+                    content = status.summary or "Task completed",
                     cardType = "ResultCard",
                     timestamp = os.time()
                 })
-
                 break
-
-            elseif status.state == "error" then
+            elseif status.state == "error" or status.state == "cancelled" then
                 activeRunId = nil
-
                 Store.addMessage({
                     id = HttpService:GenerateGUID(false),
                     type = "system",
-                    content = "Agent error: " .. (status.error or "unknown"),
+                    content = status.state == "error" and ("Error: " .. (status.error or "unknown")) or "Cancelled",
                     timestamp = os.time()
                 })
-
-                break
-
-            elseif status.state == "cancelled" then
-                activeRunId = nil
-
-                Store.addMessage({
-                    id = HttpService:GenerateGUID(false),
-                    type = "system",
-                    content = "Agent task was cancelled.",
-                    timestamp = os.time()
-                })
-
                 break
             end
         end
-
         pollConnection = nil
     end)
 end
 
--- Cancel running task
 function ChatWidget:cancelAgentTask()
     if not activeRunId then
         Store.addMessage({
             id = HttpService:GenerateGUID(false),
             type = "system",
-            content = "No task is currently running.",
+            content = "No task running",
             timestamp = os.time()
         })
         return
@@ -951,32 +1048,21 @@ function ChatWidget:cancelAgentTask()
 
     task.spawn(function()
         local ok, _ = DaemonClient.agentCancel(activeRunId)
-
-        if ok then
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = "Cancel request sent for " .. activeRunId,
-                timestamp = os.time()
-            })
-        else
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = "Failed to cancel task",
-                timestamp = os.time()
-            })
-        end
+        Store.addMessage({
+            id = HttpService:GenerateGUID(false),
+            type = "system",
+            content = ok and "Cancel sent" or "Cancel failed",
+            timestamp = os.time()
+        })
     end)
 end
 
--- Check current status
 function ChatWidget:checkAgentStatus()
     if not activeRunId then
         Store.addMessage({
             id = HttpService:GenerateGUID(false),
             type = "system",
-            content = "No task is currently running.",
+            content = "No task running",
             timestamp = os.time()
         })
         return
@@ -984,36 +1070,22 @@ function ChatWidget:checkAgentStatus()
 
     task.spawn(function()
         local ok, status = DaemonClient.agentStatus(activeRunId)
-
-        if ok and status then
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = string.format("Task %s: %s", status.runId, status.state),
-                timestamp = os.time()
-            })
-        else
-            Store.addMessage({
-                id = HttpService:GenerateGUID(false),
-                type = "system",
-                content = "Failed to get status",
-                timestamp = os.time()
-            })
-        end
+        Store.addMessage({
+            id = HttpService:GenerateGUID(false),
+            type = "system",
+            content = ok and string.format("Task %s: %s", status.runId, status.state) or "Status failed",
+            timestamp = os.time()
+        })
     end)
 end
 
 function ChatWidget:updateMessages(messages: {Store.ChatMessage})
     local scroll = self.elements.messagesScroll
 
-    -- Clear existing
     for _, child in scroll:GetChildren() do
-        if child:IsA("Frame") then
-            child:Destroy()
-        end
+        if child:IsA("Frame") then child:Destroy() end
     end
 
-    -- Add messages
     for i, msg in ipairs(messages) do
         local msgFrame = Instance.new("Frame")
         msgFrame.Name = "Message_" .. i
@@ -1037,7 +1109,6 @@ function ChatWidget:updateMessages(messages: {Store.ChatMessage})
         msgPadding.PaddingRight = UDim.new(0, 8)
         msgPadding.Parent = msgFrame
 
-        -- Time label
         local timeLabel = Theme.createLabel({
             parent = msgFrame,
             text = os.date("%H:%M", msg.timestamp),
@@ -1046,7 +1117,6 @@ function ChatWidget:updateMessages(messages: {Store.ChatMessage})
         })
         timeLabel.Size = UDim2.new(1, 0, 0, 14)
 
-        -- Content label
         local contentLabel = Theme.createLabel({
             parent = msgFrame,
             text = msg.content,
@@ -1059,13 +1129,12 @@ function ChatWidget:updateMessages(messages: {Store.ChatMessage})
         contentLabel.TextWrapped = true
     end
 
-    -- Scroll to bottom
     task.defer(function()
         scroll.CanvasPosition = Vector2.new(0, scroll.AbsoluteCanvasSize.Y)
     end)
 end
 
--- DevTools: Capture current pointer position
+-- DevTools
 function ChatWidget:capturePointer()
     task.spawn(function()
         local ok, result = pcall(function()
@@ -1080,37 +1149,30 @@ function ChatWidget:capturePointer()
             local decoded = HttpService:JSONDecode(result)
             if decoded.success and decoded.result then
                 local pos = decoded.result.position
-                local instance = decoded.result.instance
-                if not pos then
+                if pos then
+                    local message = string.format("Marked: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z)
+                    if decoded.result.instance and decoded.result.instance.path then
+                        message = message .. " on " .. decoded.result.instance.path
+                    end
+                    Store.addMessage({
+                        id = HttpService:GenerateGUID(false),
+                        type = "system",
+                        content = message,
+                        timestamp = os.time()
+                    })
+                    self:setStatus("Position captured", Theme.Colors.Success)
+                    task.delay(1.5, function() self:setStatus("") end)
+                else
                     self:setStatus("No position", Theme.Colors.Warning)
-                    return
                 end
-                local message = string.format("Marked: (%.1f, %.1f, %.1f)", pos.x, pos.y, pos.z)
-                if instance and instance.path then
-                    message = message .. " on " .. instance.path
-                end
-                Store.addMessage({
-                    id = HttpService:GenerateGUID(false),
-                    type = "system",
-                    content = message,
-                    timestamp = os.time()
-                })
-                self:setStatus("Position captured", Theme.Colors.Success)
-                task.delay(1.5, function() self:setStatus("") end)
-            else
-                self:setStatus("Capture failed", Theme.Colors.Error)
             end
-        else
-            self:setStatus("Capture failed", Theme.Colors.Error)
         end
     end)
 end
 
--- DevTools: Toggle path drawing mode
 function ChatWidget:togglePathDrawing()
     task.spawn(function()
         if isDrawingPath then
-            -- Stop drawing and get points
             local ok, result = pcall(function()
                 return HttpService:PostAsync(
                     "http://127.0.0.1:4849/devtools/call",
@@ -1142,7 +1204,6 @@ function ChatWidget:togglePathDrawing()
                 end
             end
         else
-            -- Start drawing
             local ok, result = pcall(function()
                 return HttpService:PostAsync(
                     "http://127.0.0.1:4849/devtools/call",
@@ -1164,7 +1225,7 @@ function ChatWidget:togglePathDrawing()
                     Store.addMessage({
                         id = HttpService:GenerateGUID(false),
                         type = "system",
-                        content = "Click in viewport to add path points. Click 'Stop Path' when done.",
+                        content = "Click in viewport to add path points",
                         timestamp = os.time()
                     })
                     self:setStatus("Drawing path...", Theme.Colors.Primary, true)
@@ -1174,11 +1235,10 @@ function ChatWidget:togglePathDrawing()
     end)
 end
 
--- DevTools: Clear path
 function ChatWidget:clearPath()
     task.spawn(function()
-        local ok, result = pcall(function()
-            return HttpService:PostAsync(
+        pcall(function()
+            HttpService:PostAsync(
                 "http://127.0.0.1:4849/devtools/call",
                 HttpService:JSONEncode({ tool = "studio.path.clear", params = {} }),
                 Enum.HttpContentType.ApplicationJson
@@ -1193,13 +1253,8 @@ function ChatWidget:clearPath()
             if stroke then stroke.Color = Color3.fromRGB(80, 160, 80) end
         end
 
-        if ok and result then
-            local decoded = HttpService:JSONDecode(result)
-            if decoded.success then
-                self:setStatus("Path cleared", Theme.Colors.TextDim)
-                task.delay(1, function() self:setStatus("") end)
-            end
-        end
+        self:setStatus("Path cleared", Theme.Colors.TextDim)
+        task.delay(1, function() self:setStatus("") end)
     end)
 end
 
@@ -1209,7 +1264,6 @@ function ChatWidget:destroy()
         pollConnection = nil
     end
 
-    -- Clean up WebSocket event subscriptions
     for _, unsub in ipairs(wsUnsubscribers) do
         unsub()
     end

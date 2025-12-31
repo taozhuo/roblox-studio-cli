@@ -1,0 +1,96 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "DetAI",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "notification": {
+        "all": true
+      },
+      "path": {
+        "all": true
+      },
+      "fs": {
+        "all": true,
+        "scope": ["$HOME/Documents/Roblox/Plugins/**", "$RESOURCE/**"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "2024 DetAI",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "dev.detai.desktop",
+      "longDescription": "DetAI Desktop - AI Assistant for Game Development. Works with Roblox Studio, Godot, and more.",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null,
+        "minimumSystemVersion": "12.3"
+      },
+      "resources": ["../resources/*"],
+      "shortDescription": "DetAI - AI for Game Dev",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false
+    },
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://api.detai.dev/updates/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "pubkey": ""
+    },
+    "windows": [
+      {
+        "title": "DetAI",
+        "width": 400,
+        "height": 650,
+        "minWidth": 350,
+        "minHeight": 500,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": true,
+        "center": true,
+        "decorations": true,
+        "transparent": false
+      }
+    ]
+  }
+}
