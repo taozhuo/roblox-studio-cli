@@ -7,6 +7,7 @@ import 'dotenv/config';
  * Hybrid HTTP + WebSocket server for Roblox Studio integration
  * - HTTP for heavy operations (sync, agent runs)
  * - WebSocket for live streaming (logs, progress, notifications)
+ * - MCP server for DevTools integration with Claude Code
  */
 
 import express from 'express';
@@ -18,6 +19,10 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
+
+// MCP imports
+import { registerTool, callTool, getToolSchemas } from './mcp/server.js';
+import { setPluginCaller, registerAllTools } from './mcp/tools/index.js';
 
 const PORT = process.env.DETAI_PORT || 4849;
 const REPO_PATH = process.env.DETAI_REPO || './detai-repo';
@@ -212,6 +217,80 @@ app.post('/log', (req, res) => {
   const { level, message } = req.body;
   console.log(`[Studio:${level || 'info'}] ${message}`);
   res.json({ ok: true });
+});
+
+// ============ DevTools MCP Endpoints ============
+
+// Pending DevTools call for plugin to respond
+let pendingDevToolsCall = null;
+let devToolsCallResolve = null;
+let devToolsCallTimeout = null;
+
+// Call plugin via WebSocket and wait for response
+async function callPluginTool(tool, params) {
+  return new Promise((resolve, reject) => {
+    // Set up pending call
+    const callId = crypto.randomUUID();
+    pendingDevToolsCall = { callId, tool, params };
+    devToolsCallResolve = resolve;
+
+    // Set timeout
+    devToolsCallTimeout = setTimeout(() => {
+      pendingDevToolsCall = null;
+      devToolsCallResolve = null;
+      reject(new Error(`DevTools call timed out: ${tool}`));
+    }, 30000);
+
+    // Broadcast to plugin
+    broadcast({
+      type: 'devtools.call',
+      callId,
+      tool,
+      params
+    });
+  });
+}
+
+// Plugin responds to DevTools calls here
+app.post('/devtools/result', (req, res) => {
+  const { callId, success, result, error } = req.body;
+
+  if (pendingDevToolsCall && pendingDevToolsCall.callId === callId) {
+    clearTimeout(devToolsCallTimeout);
+    const resolve = devToolsCallResolve;
+    pendingDevToolsCall = null;
+    devToolsCallResolve = null;
+    devToolsCallTimeout = null;
+
+    if (success) {
+      resolve(result);
+    } else {
+      resolve({ error: error || 'Unknown error' });
+    }
+  }
+
+  res.json({ ok: true });
+});
+
+// Direct DevTools call endpoint (for testing/direct access)
+app.post('/devtools/call', async (req, res) => {
+  const { tool, params } = req.body;
+
+  if (!tool) {
+    return res.status(400).json({ error: 'Missing tool name' });
+  }
+
+  try {
+    const result = await callPluginTool(tool, params || {});
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// List available DevTools
+app.get('/devtools/tools', (req, res) => {
+  res.json({ tools: getToolSchemas() });
 });
 
 // ============ Execution Result Endpoint ============
@@ -474,11 +553,37 @@ async function runAgentTask(runId, task, workDir, scope, context) {
   if (scope?.focusFiles?.length > 0) {
     fullPrompt += `\n\nFocus on these files: ${scope.focusFiles.join(', ')}`;
   }
+
+  // Add path data prominently if user drew a path
+  if (context?.path?.points?.length > 0) {
+    const points = context.path.points;
+    fullPrompt += `\n\n=== USER DREW A PATH (${points.length} points) ===\n`;
+    fullPrompt += `IMPORTANT: Use these EXACT coordinates when placing objects!\n`;
+    points.forEach((pt, i) => {
+      fullPrompt += `Point ${i + 1}: Vector3.new(${pt.position.x.toFixed(1)}, ${pt.position.y.toFixed(1)}, ${pt.position.z.toFixed(1)})\n`;
+    });
+    fullPrompt += `Use these points to create objects along the path or within the area they define.\n`;
+  }
+
+  // Add pointer data if user marked a position
+  if (context?.pointer?.position) {
+    const pos = context.pointer.position;
+    fullPrompt += `\n\n=== USER MARKED A POSITION ===\n`;
+    fullPrompt += `Position: Vector3.new(${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})\n`;
+    if (context.pointer.instance?.path) {
+      fullPrompt += `On instance: ${context.pointer.instance.path}\n`;
+    }
+    fullPrompt += `Use this EXACT position when the user says "here" or "at this spot".\n`;
+  }
+
   if (context?.notes) {
     fullPrompt += `\n\nNotes: ${context.notes}`;
   }
   if (context?.selection?.length > 0) {
     fullPrompt += `\n\nSelected instances: ${context.selection.join(', ')}`;
+  }
+  if (context?.apiReference) {
+    fullPrompt += `\n\n${context.apiReference}`;
   }
 
   // System prompt for Roblox Studio interaction
@@ -553,9 +658,20 @@ IMPORTANT:
         return;
       }
 
-      // Check for tool usage in assistant messages
+      // Check for text and tool usage in assistant messages
       if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
+        const content = message.message.content;
+        // Check if this message has tool calls (intermediate) or is text-only (final)
+        const hasToolUse = content.some(b => b.type === 'tool_use');
+
+        for (const block of content) {
+          // Only log intermediate text (before tool calls), not final responses
+          // Final response text is sent via run.done
+          if (block.type === 'text' && block.text && hasToolUse) {
+            const text = block.text.substring(0, 200);
+            addLog(`Claude: ${text}${block.text.length > 200 ? '...' : ''}`);
+          }
+
           if (block.type === 'tool_use') {
             const toolName = block.name;
             const toolInput = block.input || {};
@@ -774,6 +890,15 @@ async function start() {
   await ensureDir(REPO_PATH);
   await loadManifest();
 
+  // Initialize MCP DevTools
+  setPluginCaller(callPluginTool);
+  try {
+    await registerAllTools();
+    console.log('[DetAI] MCP DevTools initialized');
+  } catch (err) {
+    console.error('[DetAI] Failed to initialize MCP tools:', err.message);
+  }
+
   if (manifest.scripts.length > 0) {
     startWatcher();
   }
@@ -782,6 +907,7 @@ async function start() {
     console.log(`\n[DetAI] ========================================`);
     console.log(`[DetAI] Daemon running on http://127.0.0.1:${PORT}`);
     console.log(`[DetAI] WebSocket endpoint: ws://127.0.0.1:${PORT}/ws`);
+    console.log(`[DetAI] MCP DevTools: ${getToolSchemas().length} tools available`);
     console.log(`[DetAI] Repo path: ${path.resolve(REPO_PATH)}`);
     console.log(`[DetAI] ========================================`);
     console.log(`[DetAI] AUTH TOKEN: ${AUTH_TOKEN}`);

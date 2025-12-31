@@ -8,6 +8,7 @@ local SyncWidget = require(script.UI.SyncWidget)
 local ChatWidget = require(script.UI.ChatWidget)
 local Store = require(script.State.Store)
 local DaemonClient = require(script.Sync.DaemonClient)
+local Elements = require(script.DevTools.Elements)
 
 -- Plugin state
 local syncWidget: SyncWidget.SyncWidget? = nil
@@ -45,6 +46,9 @@ end)
 -- Initialize widgets
 local function init()
     print("[DetAI] Initializing plugin...")
+
+    -- Pass plugin reference to Elements for PluginMouse control
+    Elements.setPlugin(plugin)
 
     -- Load saved token from plugin settings if available
     local savedToken = plugin:GetSetting("DaemonToken")
