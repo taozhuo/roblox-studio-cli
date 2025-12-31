@@ -288,6 +288,18 @@ local function handleWsMessage(message: string)
     elseif eventType == "error" then
         warn("[DetAI] WebSocket error:", data.error)
         wsConnected = false
+    elseif eventType == "devtools.call" then
+        -- Handle DevTools MCP call
+        local callId = data.callId
+        local tool = data.tool
+        local params = data.params
+        if callId and tool then
+            -- Dispatch to DevTools handler
+            task.spawn(function()
+                local DevTools = require(script.Parent.Parent.DevTools)
+                DevTools.handleCall(callId, tool, params)
+            end)
+        end
     else
         -- Dispatch to listeners: run.log, run.progress, run.done, repo.changed
         dispatchEvent(eventType, data)
