@@ -444,6 +444,14 @@ function ChatWidget:setupWebSocketListeners()
         sendLog("info", "Code to execute: " .. code:sub(1, 100))
         self:setStatus("Executing", Theme.Colors.Primary, true)
 
+        -- Capture LogService errors during execution (catches async/deferred errors)
+        local execErrors: {string} = {}
+        local errorConnection = LogService.MessageOut:Connect(function(message, messageType)
+            if messageType == Enum.MessageType.MessageError then
+                table.insert(execErrors, message)
+            end
+        end)
+
         -- Execute the code in Studio
         local ok, result = pcall(function()
             local fn, err = loadstring(code)
@@ -453,7 +461,15 @@ function ChatWidget:setupWebSocketListeners()
             return fn()
         end)
 
-        if ok then
+        -- Wait briefly for any deferred/async errors to come through
+        task.wait(0.15)
+        errorConnection:Disconnect()
+
+        -- Check for LogService errors even if pcall succeeded
+        local hasLogErrors = #execErrors > 0
+        local logErrorStr = hasLogErrors and table.concat(execErrors, "\n") or nil
+
+        if ok and not hasLogErrors then
             local resultStr = tostring(result)
             sendLog("info", "Execution success: " .. resultStr)
             postExecResult(true, resultStr, nil, code)
@@ -465,8 +481,19 @@ function ChatWidget:setupWebSocketListeners()
                 end
             end)
         else
-            local errorStr = tostring(result)
-            sendLog("error", "Execution failed: " .. errorStr)
+            -- Combine pcall error with any LogService errors
+            local errorStr = ""
+            if not ok then
+                errorStr = tostring(result)
+            end
+            if hasLogErrors then
+                if errorStr ~= "" then
+                    errorStr = errorStr .. "\n\nAdditional errors from LogService:\n" .. logErrorStr
+                else
+                    errorStr = "Errors from LogService:\n" .. logErrorStr
+                end
+            end
+            sendLog("error", "Execution failed: " .. errorStr:sub(1, 200))
             postExecResult(false, nil, errorStr, code)
             self:setStatus("Error: " .. errorStr:sub(1, 30), Theme.Colors.Error)
         end
