@@ -22,6 +22,7 @@ local Elements: any = nil
 local Console: any = nil
 local Sources: any = nil
 local History: any = nil
+local Studio: any = nil
 local Network: any = nil
 local Performance: any = nil
 local Memory: any = nil
@@ -34,6 +35,7 @@ function ToolHandler.init()
         Console = require(script.Parent.Console)
         Sources = require(script.Parent.Sources)
         History = require(script.Parent.History)
+        Studio = require(script.Parent.Studio)
         -- These are placeholders for now
         -- Network = require(script.Parent.Network)
         -- Performance = require(script.Parent.Performance)
@@ -92,6 +94,20 @@ function ToolHandler.registerHandlers()
         handlers["studio.history.end"] = History.endRecording
         handlers["studio.history.undo"] = History.undo
         handlers["studio.history.redo"] = History.redo
+    end
+
+    -- Studio Tools (Plugin-level features)
+    if Studio then
+        handlers["studio.getActiveScript"] = Studio.getActiveScript
+        handlers["studio.getActiveScriptSource"] = Studio.getActiveScriptSource
+        handlers["studio.getStudioInfo"] = Studio.getStudioInfo
+        handlers["studio.openScript"] = Studio.openScript
+        handlers["studio.getOpenDocuments"] = Studio.getOpenDocuments
+        -- Debugger tools
+        handlers["studio.debug.getBreakpoints"] = Studio.getBreakpoints
+        handlers["studio.debug.addBreakpoint"] = Studio.addBreakpoint
+        handlers["studio.debug.removeBreakpoint"] = Studio.removeBreakpoint
+        handlers["studio.debug.clearAllBreakpoints"] = Studio.clearAllBreakpoints
     end
 
     -- Runtime Tools (Phase 6) - placeholders

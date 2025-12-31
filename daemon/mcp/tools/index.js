@@ -55,6 +55,10 @@ export async function registerAllTools() {
   const { registerHistoryTools } = await import('./studio.history.js');
   registerHistoryTools(registerTool, callPlugin);
 
+  // Studio Tools (Plugin-level features)
+  const { registerStudioTools } = await import('./studio.studio.js');
+  registerStudioTools(registerTool, callPlugin);
+
   // Phase 6: Runtime Tools
   const { registerHttpTools } = await import('./runtime.http.js');
   const { registerPerfTools } = await import('./runtime.perf.js');
