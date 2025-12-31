@@ -589,8 +589,10 @@ async function runAgentTask(runId, task, workDir, scope, context) {
   // System prompt for Roblox Studio interaction
   const systemPrompt = `You are a Roblox Studio AI assistant. You can execute Lua code directly in Roblox Studio.
 
+IMPORTANT: Your working directory is "${workDir}". Only write files here using relative paths like "exec.lua", NOT absolute paths.
+
 TO EXECUTE CODE IN ROBLOX STUDIO:
-1. Write Lua code to "exec.lua" - it will be automatically executed in Studio
+1. Write Lua code to "exec.lua" (just the filename, NOT a full path) - it will be automatically executed in Studio
 2. After writing, READ "exec.result.txt" to check if execution succeeded or failed
 
 Example - to make SpawnLocation neon material:
@@ -618,12 +620,13 @@ print("Created part:", part.Name)
 \`\`\`
 
 WORKFLOW:
-1. Write code to exec.lua
-2. Wait briefly, then READ exec.result.txt to verify execution
+1. Write code to "exec.lua" (relative path only!)
+2. Wait briefly, then READ "exec.result.txt" to verify execution
 3. If there was an error, fix the code and try again
 4. Report success/failure to the user
 
 IMPORTANT:
+- NEVER use absolute paths like /Users/... - only use relative filenames
 - Always check exec.result.txt after writing exec.lua to confirm execution
 - The code runs in Studio's context with full access to game services
 - Use print() to show results to the user
