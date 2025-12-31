@@ -19,6 +19,8 @@ import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import os from 'os';
 
 // MCP imports
 import { registerTool, callTool, getToolSchemas } from './mcp/server.js';
@@ -207,8 +209,280 @@ app.get('/health', (req, res) => {
     ok: true,
     version: '0.3',
     agentSdkEnabled: true,
-    wsEnabled: true
+    wsEnabled: true,
+    pluginConnected: wsClients.size > 0
   });
+});
+
+// ============ Chat Endpoint using Claude Agent SDK with MCP ============
+
+// MCP server configuration for Roblox Studio tools
+const mcpServers = {
+  'roblox-studio': {
+    type: 'stdio',
+    command: 'node',
+    args: [path.join(path.dirname(new URL(import.meta.url).pathname), 'mcp-stdio.js')],
+    env: {
+      DETAI_PORT: String(PORT)
+    }
+  }
+};
+
+// Helper to gather Studio context (selection, path, pointer)
+async function gatherStudioContext() {
+  const context = {};
+  try {
+    // Get selection
+    const selection = await callPluginTool('studio.selection.get', {});
+    if (selection && !selection.error) {
+      context.selection = selection;
+    }
+  } catch (e) { /* ignore */ }
+
+  try {
+    // Get path data
+    const path = await callPluginTool('studio.path.get', {});
+    if (path && !path.error && path.points?.length > 0) {
+      context.path = path;
+    }
+  } catch (e) { /* ignore */ }
+
+  try {
+    // Get last pointer position
+    const pointer = await callPluginTool('studio.pointer.getLast', {});
+    if (pointer && !pointer.error && pointer.position) {
+      context.pointer = pointer;
+    }
+  } catch (e) { /* ignore */ }
+
+  return context;
+}
+
+// Streaming chat endpoint using Server-Sent Events (SSE)
+app.post('/chat/stream', async (req, res) => {
+  // Set SSE headers with CORS
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.flushHeaders();
+
+  const sendEvent = (type, data) => {
+    res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+  };
+
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      sendEvent('error', { message: 'ANTHROPIC_API_KEY not set' });
+      res.end();
+      return;
+    }
+
+    const { message, history = [] } = req.body;
+    if (!message) {
+      sendEvent('error', { message: 'Message required' });
+      res.end();
+      return;
+    }
+
+    // Gather Studio context automatically
+    sendEvent('status', { message: 'Getting context...' });
+    const studioContext = await gatherStudioContext();
+
+    // Build context string
+    let contextStr = '';
+    if (studioContext.selection?.items?.length > 0) {
+      contextStr += `\n\nCURRENT SELECTION: ${studioContext.selection.items.map(i => i.path).join(', ')}`;
+    }
+    if (studioContext.path?.points?.length > 0) {
+      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points): ${JSON.stringify(studioContext.path.points.slice(0, 5))}...`;
+    }
+    if (studioContext.pointer?.position) {
+      const p = studioContext.pointer.position;
+      contextStr += `\n\nMARKED POSITION: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`;
+    }
+
+    let prompt = message + contextStr;
+    if (history.length > 0) {
+      const historyContext = history.map(h =>
+        `${h.role === 'assistant' ? 'Assistant' : 'User'}: ${h.content}`
+      ).join('\n\n');
+      prompt = `Previous conversation:\n${historyContext}\n\nUser: ${message}${contextStr}`;
+    }
+
+    const systemPrompt = `You are DetAI, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
+
+CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
+
+You have MCP tools available to interact with Roblox Studio:
+- studio.selection.get/set - Get or set selected instances
+- studio.instances.tree - Query the instance tree
+- studio.instances.create/delete - Create or delete instances
+- studio.eval - Execute Luau code directly in Studio
+- studio.scripts.read/write - Read or write script content
+- studio.path.get - Get recorded path points from user
+- studio.pointer.get - Get marked pointer position
+
+When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
+Be proactive. Execute code. Make changes. You have full control.`;
+
+    console.log('[DetAI] Stream request:', message.substring(0, 50) + '...');
+    sendEvent('status', { message: 'Starting...' });
+
+    const response = query({
+      prompt,
+      options: {
+        systemPrompt,
+        model: 'sonnet',
+        cwd: REPO_PATH,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        mcpServers
+      }
+    });
+
+    let fullText = '';
+
+    for await (const event of response) {
+      console.log('[DetAI] Event:', event.type);
+
+      if (event.type === 'assistant' && event.message?.content) {
+        for (const block of event.message.content) {
+          if (block.type === 'text') {
+            fullText += block.text;
+            sendEvent('text', { content: block.text });
+          } else if (block.type === 'tool_use') {
+            // Stream tool calls so UI can show progress
+            const toolName = block.name.replace('mcp__roblox-studio__', '').replace(/_/g, '.');
+            sendEvent('tool_start', { tool: toolName, input: block.input });
+          }
+        }
+      }
+
+      if (event.type === 'user' && event.message?.content) {
+        // Tool results come back as user messages
+        for (const block of event.message.content) {
+          if (block.type === 'tool_result') {
+            sendEvent('tool_end', { toolUseId: block.tool_use_id });
+          }
+        }
+      }
+
+      if (event.type === 'result') {
+        sendEvent('text', { content: event.result || '' });
+      }
+    }
+
+    sendEvent('done', { fullText });
+    res.end();
+
+  } catch (err) {
+    console.error('[DetAI] Stream error:', err);
+    sendEvent('error', { message: err.message });
+    res.end();
+  }
+});
+
+// Non-streaming fallback
+app.post('/chat', async (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({
+        error: 'ANTHROPIC_API_KEY not set. Add it to daemon/.env file.',
+        hint: 'Create daemon/.env with: ANTHROPIC_API_KEY=sk-ant-...'
+      });
+    }
+
+    const { message, history = [] } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: 'Message required' });
+    }
+
+    // Gather context
+    const studioContext = await gatherStudioContext();
+    let contextStr = '';
+    if (studioContext.selection?.items?.length > 0) {
+      contextStr += `\n\nCURRENT SELECTION: ${studioContext.selection.items.map(i => i.path).join(', ')}`;
+    }
+    if (studioContext.path?.points?.length > 0) {
+      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points): ${JSON.stringify(studioContext.path.points.slice(0, 5))}...`;
+    }
+    if (studioContext.pointer?.position) {
+      const p = studioContext.pointer.position;
+      contextStr += `\n\nMARKED POSITION: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`;
+    }
+
+    let prompt = message + contextStr;
+    if (history.length > 0) {
+      const historyContext = history.map(h =>
+        `${h.role === 'assistant' ? 'Assistant' : 'User'}: ${h.content}`
+      ).join('\n\n');
+      prompt = `Previous conversation:\n${historyContext}\n\nUser: ${message}${contextStr}`;
+    }
+
+    const systemPrompt = `You are DetAI, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
+
+CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
+
+You have MCP tools available to interact with Roblox Studio:
+- studio.eval - Execute Luau code directly in Studio
+- studio.instances.create/delete - Create or delete instances
+- studio.scripts.read/write - Read or write script content
+
+When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
+Be proactive. Execute code. Make changes. You have full control.`;
+
+    console.log('[DetAI] Chat request:', message.substring(0, 50) + '...');
+
+    const response = query({
+      prompt,
+      options: {
+        systemPrompt,
+        model: 'sonnet',
+        cwd: REPO_PATH,
+        permissionMode: 'bypassPermissions',
+        allowDangerouslySkipPermissions: true,
+        mcpServers
+      }
+    });
+
+    let assistantMessage = '';
+    let toolResults = [];
+
+    for await (const event of response) {
+      if (event.type === 'assistant' && event.message?.content) {
+        for (const block of event.message.content) {
+          if (block.type === 'text') {
+            assistantMessage += block.text;
+          } else if (block.type === 'tool_use') {
+            toolResults.push({
+              tool: block.name,
+              input: block.input
+            });
+          }
+        }
+      }
+      if (event.type === 'result' && event.result) {
+        assistantMessage += event.result;
+      }
+    }
+
+    if (!assistantMessage) {
+      assistantMessage = 'No response generated';
+    }
+
+    res.json({
+      ok: true,
+      response: assistantMessage,
+      toolsUsed: toolResults.length > 0 ? toolResults : undefined
+    });
+
+  } catch (err) {
+    console.error('[DetAI] Chat error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ============ Plugin Log Endpoint ============

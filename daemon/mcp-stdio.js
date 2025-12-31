@@ -1,49 +1,38 @@
 #!/usr/bin/env node
+
 /**
- * MCP stdio entry point for Claude Code
- *
- * This starts the MCP server with stdio transport, allowing Claude Code
- * to use the Roblox Studio DevTools as an MCP server.
- *
- * Note: The HTTP daemon must also be running for Studio tools to work.
- * Cloud tools work independently via Open Cloud API.
+ * MCP Server Entry Point (stdio transport)
+ * Run this as a separate process for Claude Agent SDK integration
  */
 
 import 'dotenv/config';
 import { startMCPServer } from './mcp/server.js';
 import { setPluginCaller, registerAllTools } from './mcp/tools/index.js';
 
-// For Studio tools, we need to communicate with the HTTP daemon
-const DAEMON_URL = process.env.DETAI_DAEMON_URL || 'http://127.0.0.1:4849';
-
-// Plugin caller that forwards to HTTP daemon
-async function callPluginViaHttp(tool, params) {
-  const response = await fetch(`${DAEMON_URL}/devtools/call`, {
+// Plugin caller that makes HTTP requests to the main daemon
+async function httpPluginCaller(tool, params) {
+  const port = process.env.DETAI_PORT || 4849;
+  const response = await fetch(`http://127.0.0.1:${port}/devtools/call`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ tool, params }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool, params })
   });
-
   const data = await response.json();
-
   if (!data.success) {
-    throw new Error(data.error || 'Tool call failed');
+    throw new Error(data.error || 'Plugin call failed');
   }
-
   return data.result;
 }
 
+// Set up plugin caller and register tools, then start server
 async function main() {
-  // Set up plugin caller to use HTTP daemon
-  setPluginCaller(callPluginViaHttp);
-
-  // Register all tools
-  await registerAllTools();
-
-  // Start MCP server with stdio
+  setPluginCaller(httpPluginCaller);
+  await registerAllTools();  // Wait for all tools to register
+  console.error('[MCP] All tools registered');
   await startMCPServer();
 }
 
-main().catch(console.error);
+main().catch(err => {
+  console.error('[MCP] Failed to start:', err);
+  process.exit(1);
+});

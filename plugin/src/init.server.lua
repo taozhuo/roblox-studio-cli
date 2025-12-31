@@ -1,98 +1,139 @@
 --!strict
 --[[
     DetAI Studio Plugin
-    Main entry point - creates UI widgets and manages plugin lifecycle
+    Thin API bridge - exposes Roblox Studio APIs to the daemon
+    UI is handled by the DetAI Desktop app (Tauri)
 ]]
 
-local SyncWidget = require(script.UI.SyncWidget)
-local ChatWidget = require(script.UI.ChatWidget)
 local Store = require(script.State.Store)
 local DaemonClient = require(script.Sync.DaemonClient)
 local Elements = require(script.DevTools.Elements)
 local Studio = require(script.DevTools.Studio)
 
--- Plugin state
-local syncWidget: SyncWidget.SyncWidget? = nil
-local chatWidget: ChatWidget.ChatWidget? = nil
+-- Minimal status widget
+local statusWidget: DockWidgetPluginGui? = nil
+local statusLabel: TextLabel? = nil
+
+-- Create minimal status indicator
+local function createStatusWidget()
+    local widgetInfo = DockWidgetPluginGuiInfo.new(
+        Enum.InitialDockState.Float,
+        false, -- disabled by default
+        false,
+        120, 32,
+        120, 32
+    )
+
+    statusWidget = plugin:CreateDockWidgetPluginGui("DetAI_Status", widgetInfo)
+    statusWidget.Title = "DetAI"
+    statusWidget.Name = "DetAI_Status"
+
+    -- Simple status display
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.fromScale(1, 1)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    frame.BorderSizePixel = 0
+    frame.Parent = statusWidget
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(160, 160, 170)
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 12
+    label.Text = "Connecting..."
+    label.Parent = frame
+
+    statusLabel = label
+
+    return statusWidget
+end
+
+-- Update status display
+local function updateStatus(connected: boolean, message: string?)
+    if statusLabel then
+        if connected then
+            statusLabel.TextColor3 = Color3.fromRGB(74, 222, 128)
+            statusLabel.Text = message or "Connected"
+        else
+            statusLabel.TextColor3 = Color3.fromRGB(248, 113, 113)
+            statusLabel.Text = message or "Disconnected"
+        end
+    end
+end
 
 -- Toolbar setup
 local toolbar = plugin:CreateToolbar("DetAI")
 
-local syncButton = toolbar:CreateButton(
-    "Sync",
-    "Open DetAI Sync Panel",
-    "rbxassetid://4458901886" -- sync icon
+local statusButton = toolbar:CreateButton(
+    "Status",
+    "Show DetAI connection status",
+    "rbxassetid://4458901886"
 )
 
-local chatButton = toolbar:CreateButton(
-    "Chat",
-    "Open DetAI Chat Panel",
-    "rbxassetid://4458901886" -- chat icon
-)
-
--- Toggle sync widget
-syncButton.Click:Connect(function()
-    if syncWidget then
-        syncWidget.widget.Enabled = not syncWidget.widget.Enabled
+statusButton.Click:Connect(function()
+    if statusWidget then
+        statusWidget.Enabled = not statusWidget.Enabled
     end
 end)
 
--- Toggle chat widget
-chatButton.Click:Connect(function()
-    if chatWidget then
-        chatWidget.widget.Enabled = not chatWidget.widget.Enabled
-    end
-end)
-
--- Initialize widgets
+-- Initialize
 local function init()
-    print("[DetAI] Initializing plugin...")
+    print("[DetAI] Initializing plugin (thin bridge mode)...")
 
-    -- Pass plugin reference to modules that need it
+    -- Pass plugin reference to DevTools modules
     Elements.setPlugin(plugin)
     Studio.setPlugin(plugin)
 
-    -- Load saved token from plugin settings if available
+    -- Create minimal status widget
+    createStatusWidget()
+
+    -- Load saved token
     local savedToken = plugin:GetSetting("DaemonToken")
     if savedToken and savedToken ~= "" then
         Store.setDaemonConfig(Store.getState().daemonUrl, savedToken)
         print("[DetAI] Loaded saved daemon token")
     end
 
-    -- Create widgets
-    syncWidget = SyncWidget.new(plugin)
-    syncWidget:create()
-
-    chatWidget = ChatWidget.new(plugin)
-    chatWidget:create()
-
-    -- Try to auto-connect to daemon (HTTP + WebSocket)
+    -- Auto-connect to daemon
     task.spawn(function()
-        task.wait(1) -- Small delay for Studio to settle
+        task.wait(1)
+
         local connected = DaemonClient.connectFull()
         if connected then
-            print("[DetAI] Connected to daemon with HTTP + WebSocket")
+            updateStatus(true, "Connected")
+            print("[DetAI] Connected to daemon")
         else
-            print("[DetAI] Failed to connect to daemon")
+            updateStatus(false, "No daemon")
+            print("[DetAI] Daemon not available")
+        end
+
+        -- Periodic reconnection check
+        while true do
+            task.wait(10)
+            local state = Store.getState()
+            if state.connectionStatus == "connected" then
+                updateStatus(true, "Connected")
+            elseif state.connectionStatus == "connecting" then
+                updateStatus(false, "Connecting...")
+            else
+                updateStatus(false, "Disconnected")
+                -- Try to reconnect
+                DaemonClient.connectFull()
+            end
         end
     end)
 
-    print("[DetAI] Plugin initialized")
+    print("[DetAI] Plugin ready (UI in DetAI Desktop app)")
 end
 
--- Cleanup on unload
+-- Cleanup
 plugin.Unloading:Connect(function()
     print("[DetAI] Unloading plugin...")
-
-    -- Disconnect WebSocket
     DaemonClient.disconnectWebSocket()
 
-    if syncWidget then
-        syncWidget:destroy()
-    end
-
-    if chatWidget then
-        chatWidget:destroy()
+    if statusWidget then
+        statusWidget:Destroy()
     end
 
     Store.reset()
