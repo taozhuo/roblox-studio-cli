@@ -15,13 +15,13 @@ local ToolHandler = require(script.ToolHandler)
 
 -- Initialize DevTools
 function DevTools.init()
-    print("[DevTools] Initializing Roblox Studio DevTools")
+    print("[Bakable] Initializing Roblox Studio DevTools")
     ToolHandler.init()
 end
 
 -- Handle a DevTools call from the daemon
 function DevTools.handleCall(callId: string, tool: string, params: any): ()
-    print(string.format("[DevTools] Handling call: %s (id: %s)", tool, callId))
+    print(string.format("[Bakable] Handling call: %s (id: %s)", tool, callId))
 
     -- Execute the tool
     local success, result = ToolHandler.execute(tool, params)
@@ -55,7 +55,7 @@ function DevTools.sendResult(callId: string, success: boolean, result: any): ()
     end)
 
     if not requestSuccess then
-        warn("[DevTools] Failed to send result:", response)
+        warn("[Bakable] Failed to send result:", response)
     end
 end
 
@@ -89,7 +89,7 @@ function DevTools.sendSessionInfo(): ()
     end)
 
     if requestSuccess then
-        print("[DevTools] Session info sent:", placeName, placeId ~= 0 and ("(ID: " .. placeId .. ")") or "(unpublished)")
+        print("[Bakable] Session info sent:", placeName, placeId ~= 0 and ("(ID: " .. placeId .. ")") or "(unpublished)")
     end
 end
 

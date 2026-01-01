@@ -22,7 +22,7 @@ export default function MessageBubble({ message, isLast }: MessageBubbleProps) {
   const getName = () => {
     if (isUser) return 'You';
     if (isSystem) return 'System';
-    return 'DetAI';
+    return 'Bakable';
   };
 
   const getAvatar = () => {

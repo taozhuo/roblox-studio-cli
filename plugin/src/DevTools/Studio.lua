@@ -9,9 +9,38 @@
     - DebuggerManager (breakpoints)
 ]]
 
-local StudioService = game:GetService("StudioService")
-local ScriptEditorService = game:GetService("ScriptEditorService")
-local DebuggerManager = game:GetService("DebuggerManager")
+print("[Studio] Module loading...")
+
+-- Services that are always available
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+print("[Studio] Core services loaded")
+
+-- Studio-only services (may fail during Play mode)
+local StudioService: any = nil
+local ScriptEditorService: any = nil
+local DebuggerManager: any = nil
+
+local ok, err
+
+ok, err = pcall(function()
+    StudioService = game:GetService("StudioService")
+end)
+if not ok then print("[Studio] StudioService failed:", err) end
+
+ok, err = pcall(function()
+    ScriptEditorService = game:GetService("ScriptEditorService")
+end)
+if not ok then print("[Studio] ScriptEditorService failed:", err) end
+
+ok, err = pcall(function()
+    DebuggerManager = game:GetService("DebuggerManager")
+end)
+if not ok then print("[Studio] DebuggerManager failed:", err) end
+
+print("[Studio] Services initialized")
 
 local Studio = {}
 
@@ -492,6 +521,287 @@ function Studio.focusCameraOn(params: any): (boolean, any)
         target = current:GetFullName(),
         cameraPosition = { x = newPos.X, y = newPos.Y, z = newPos.Z },
         targetPosition = { x = targetPos.X, y = targetPos.Y, z = targetPos.Z }
+    }
+end
+
+-- Focus camera on current selection (like pressing "F" in Studio)
+function Studio.focusOnSelection(params: any): (boolean, any)
+    local Selection = game:GetService("Selection")
+    local camera = workspace.CurrentCamera
+
+    if not camera then
+        return false, "No camera found"
+    end
+
+    local selected = Selection:Get()
+    if #selected == 0 then
+        return false, "Nothing selected"
+    end
+
+    -- Calculate combined bounding box of all selected items
+    local minBound = Vector3.new(math.huge, math.huge, math.huge)
+    local maxBound = Vector3.new(-math.huge, -math.huge, -math.huge)
+    local hasValidBounds = false
+
+    for _, instance in ipairs(selected) do
+        if instance:IsA("Model") then
+            local cf, size = instance:GetBoundingBox()
+            local halfSize = size / 2
+            local corners = {
+                cf * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+                cf * CFrame.new(halfSize.X, -halfSize.Y, -halfSize.Z),
+                cf * CFrame.new(-halfSize.X, halfSize.Y, -halfSize.Z),
+                cf * CFrame.new(halfSize.X, halfSize.Y, -halfSize.Z),
+                cf * CFrame.new(-halfSize.X, -halfSize.Y, halfSize.Z),
+                cf * CFrame.new(halfSize.X, -halfSize.Y, halfSize.Z),
+                cf * CFrame.new(-halfSize.X, halfSize.Y, halfSize.Z),
+                cf * CFrame.new(halfSize.X, halfSize.Y, halfSize.Z),
+            }
+            for _, corner in ipairs(corners) do
+                local pos = corner.Position
+                minBound = Vector3.new(math.min(minBound.X, pos.X), math.min(minBound.Y, pos.Y), math.min(minBound.Z, pos.Z))
+                maxBound = Vector3.new(math.max(maxBound.X, pos.X), math.max(maxBound.Y, pos.Y), math.max(maxBound.Z, pos.Z))
+            end
+            hasValidBounds = true
+        elseif instance:IsA("BasePart") then
+            local cf = instance.CFrame
+            local size = instance.Size
+            local halfSize = size / 2
+            local corners = {
+                cf * CFrame.new(-halfSize.X, -halfSize.Y, -halfSize.Z),
+                cf * CFrame.new(halfSize.X, halfSize.Y, halfSize.Z),
+            }
+            for _, corner in ipairs(corners) do
+                local pos = corner.Position
+                minBound = Vector3.new(math.min(minBound.X, pos.X), math.min(minBound.Y, pos.Y), math.min(minBound.Z, pos.Z))
+                maxBound = Vector3.new(math.max(maxBound.X, pos.X), math.max(maxBound.Y, pos.Y), math.max(maxBound.Z, pos.Z))
+            end
+            hasValidBounds = true
+        end
+    end
+
+    if not hasValidBounds then
+        return false, "Selected items have no spatial bounds"
+    end
+
+    -- Calculate center and size of bounding box
+    local center = (minBound + maxBound) / 2
+    local size = maxBound - minBound
+    local maxDimension = math.max(size.X, size.Y, size.Z)
+
+    -- Calculate distance based on size (similar to Studio's "F" key)
+    -- Use FOV to calculate proper distance
+    local fov = math.rad(camera.FieldOfView)
+    local distance = (maxDimension / 2) / math.tan(fov / 2) * 1.5 -- 1.5x for padding
+
+    -- Minimum distance
+    distance = math.max(distance, 5)
+
+    -- Position camera looking at center from current direction
+    local currentDir = (camera.CFrame.Position - center).Unit
+    -- If camera is at center, use default direction
+    if currentDir.Magnitude ~= currentDir.Magnitude then -- NaN check
+        currentDir = Vector3.new(0, 0.5, 1).Unit
+    end
+
+    local newPos = center + currentDir * distance
+    camera.CFrame = CFrame.lookAt(newPos, center)
+
+    return true, {
+        focused = true,
+        selectionCount = #selected,
+        center = { x = center.X, y = center.Y, z = center.Z },
+        size = { x = size.X, y = size.Y, z = size.Z },
+        cameraDistance = distance
+    }
+end
+
+-- ============ Playtest Tools ============
+
+local RunService = game:GetService("RunService")
+
+-- Get current playtest status
+function Studio.getPlaytestStatus(params: any): (boolean, any)
+    return true, {
+        isRunning = RunService:IsRunning(),
+        isEdit = RunService:IsEdit(),
+        isRunMode = RunService:IsRunMode(),
+        isStudio = RunService:IsStudio(),
+    }
+end
+
+-- Start Run mode (server-only, no player character)
+-- Note: This is NOT the same as F5 Play - use studio.playtest.play for full Play mode
+function Studio.runMode(params: any): (boolean, any)
+    if RunService:IsRunning() then
+        return false, "Already running - stop first"
+    end
+
+    RunService:Run()
+
+    -- Wait a moment for it to start
+    task.wait(0.1)
+
+    return true, {
+        started = true,
+        mode = "run",
+        isRunning = RunService:IsRunning(),
+        note = "Run mode started (server-only, no player). Use studio.playtest.play for full Play mode with player character."
+    }
+end
+
+-- Stop the current playtest
+function Studio.stopPlaytest(params: any): (boolean, any)
+    if not RunService:IsRunning() then
+        return false, "Not currently running"
+    end
+
+    RunService:Stop()
+
+    -- Wait a moment for it to stop
+    task.wait(0.1)
+
+    return true, {
+        stopped = true,
+        isRunning = RunService:IsRunning(),
+        isEdit = RunService:IsEdit()
+    }
+end
+
+-- ============ GUI Tools ============
+
+-- Helper to get the GUI container (StarterGui in Edit mode, PlayerGui in Play mode)
+local function getGuiContainer()
+    if RunService:IsEdit() then
+        -- Edit mode: use StarterGui
+        return game:GetService("StarterGui"), "StarterGui", nil
+    else
+        -- Play mode: use PlayerGui
+        local players = Players:GetPlayers()
+        if #players == 0 then
+            return nil, nil, "No players - wait for player to spawn"
+        end
+        local playerGui = players[1]:FindFirstChild("PlayerGui")
+        if not playerGui then
+            return nil, nil, "PlayerGui not found"
+        end
+        return playerGui, players[1].Name, nil
+    end
+end
+
+-- List all ScreenGuis
+function Studio.listGuis(params: any): (boolean, any)
+    local container, source, err = getGuiContainer()
+    if not container then
+        return false, err
+    end
+
+    local guis = {}
+    for _, child in container:GetChildren() do
+        if child:IsA("ScreenGui") then
+            table.insert(guis, {
+                name = child.Name,
+                enabled = child.Enabled,
+                displayOrder = child.DisplayOrder,
+                childCount = #child:GetDescendants()
+            })
+        end
+    end
+
+    return true, {
+        source = source,
+        mode = RunService:IsEdit() and "edit" or "play",
+        guiCount = #guis,
+        guis = guis
+    }
+end
+
+-- Toggle a specific ScreenGui on/off
+function Studio.toggleGui(params: any): (boolean, any)
+    local guiName = params.name
+    local enabled = params.enabled
+
+    if not guiName then
+        return false, "name required"
+    end
+
+    local container, source, err = getGuiContainer()
+    if not container then
+        return false, err
+    end
+
+    local gui = container:FindFirstChild(guiName)
+    if not gui or not gui:IsA("ScreenGui") then
+        return false, "ScreenGui not found: " .. guiName
+    end
+
+    if enabled ~= nil then
+        gui.Enabled = enabled
+    else
+        gui.Enabled = not gui.Enabled
+    end
+
+    return true, {
+        name = guiName,
+        enabled = gui.Enabled,
+        source = source
+    }
+end
+
+-- Show only one GUI, hide all others
+function Studio.showOnlyGui(params: any): (boolean, any)
+    local guiName = params.name
+
+    if not guiName then
+        return false, "name required"
+    end
+
+    local container, source, err = getGuiContainer()
+    if not container then
+        return false, err
+    end
+
+    local targetGui = nil
+    for _, child in container:GetChildren() do
+        if child:IsA("ScreenGui") then
+            if child.Name == guiName then
+                targetGui = child
+                child.Enabled = true
+            else
+                child.Enabled = false
+            end
+        end
+    end
+
+    if not targetGui then
+        return false, "ScreenGui not found: " .. guiName
+    end
+
+    return true, {
+        showing = guiName,
+        enabled = true,
+        source = source
+    }
+end
+
+-- Hide all ScreenGuis
+function Studio.hideAllGuis(params: any): (boolean, any)
+    local container, source, err = getGuiContainer()
+    if not container then
+        return false, err
+    end
+
+    local count = 0
+    for _, child in container:GetChildren() do
+        if child:IsA("ScreenGui") then
+            child.Enabled = false
+            count = count + 1
+        end
+    end
+
+    return true, {
+        hidden = count,
+        source = source
     }
 end
 

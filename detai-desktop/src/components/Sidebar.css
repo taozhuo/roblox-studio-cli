@@ -230,6 +230,53 @@
   border-color: #6366f1;
 }
 
+/* Selection List */
+.selection-list {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.selection-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-quaternary);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.selection-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.selection-item:last-child {
+  border-bottom: none;
+}
+
+.selection-class {
+  font-size: 10px;
+  font-family: 'SF Mono', monospace;
+  color: var(--text-quaternary);
+  background: var(--bg-app);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.selection-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Info Card */
 .info-card {
   background: var(--bg-surface);

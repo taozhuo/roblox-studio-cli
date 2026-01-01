@@ -59,6 +59,18 @@ export async function registerAllTools() {
   const { registerStudioTools } = await import('./studio.studio.js');
   registerStudioTools(registerTool, callPlugin);
 
+  // Playtest Tools (Play/Run control, character movement)
+  const { registerPlaytestTools } = await import('./studio.playtest.js');
+  registerPlaytestTools(registerTool, callPlugin);
+
+  // Recording Tools (viewport capture, GIF/video creation)
+  const { registerRecordingTools } = await import('./studio.recording.js');
+  registerRecordingTools(registerTool, callPlugin);
+
+  // GUI Tools (list/toggle ScreenGuis during Play mode)
+  const { registerGuiTools } = await import('./studio.gui.js');
+  registerGuiTools(registerTool, callPlugin);
+
   // Phase 6: Runtime Tools
   const { registerHttpTools } = await import('./runtime.http.js');
   const { registerPerfTools } = await import('./runtime.perf.js');

@@ -78,25 +78,25 @@ function DaemonClient.health(): (boolean, any)
 end
 
 function DaemonClient.connect(): boolean
-    Store.setSyncStatus("connecting")
+    Store.setConnectionStatus("connecting")
 
     local ok, result = DaemonClient.health()
 
     if ok and result and result.ok then
-        Store.setSyncStatus("connected")
+        Store.setConnectionStatus("connected")
         local version = result.version or "unknown"
         local agentEnabled = result.agentSdkEnabled and " (Agent SDK enabled)" or ""
-        print("[DetAI] Connected to daemon:", version .. agentEnabled)
+        print("[Bakable] Connected to daemon:", version .. agentEnabled)
         return true
     else
-        Store.setSyncStatus("error", "Failed to connect to daemon")
-        warn("[DetAI] Daemon connection failed:", result and result.error or "unknown error")
+        Store.setConnectionStatus("error", "Failed to connect to daemon")
+        warn("[Bakable] Daemon connection failed:", result and result.error or "unknown error")
         return false
     end
 end
 
 function DaemonClient.disconnect()
-    Store.setSyncStatus("disconnected")
+    Store.setConnectionStatus("disconnected")
 end
 
 -- ============ Sync Endpoints ============
@@ -114,16 +114,16 @@ export type PushSnapshotPayload = {
 }
 
 function DaemonClient.pushSnapshot(payload: PushSnapshotPayload): (boolean, any)
-    Store.setSyncStatus("syncing")
+    Store.setConnectionStatus("syncing")
     local ok, result = DaemonClient.request("POST", "/sync/pushSnapshot", payload)
 
     if ok then
-        Store.setSyncStatus("connected")
+        Store.setConnectionStatus("connected")
         if result and result.revision then
             Store.setRevision(result.revision)
         end
     else
-        Store.setSyncStatus("error", result and result.error or "Push failed")
+        Store.setConnectionStatus("error", result and result.error or "Push failed")
     end
 
     return ok, result
@@ -280,13 +280,13 @@ local function handleWsMessage(message: string)
 
     if eventType == "welcome" then
         wsConnected = true
-        print("[DetAI] WebSocket connected, daemon version:", data.version)
-        Store.setSyncStatus("connected")
+        print("[Bakable] WebSocket connected, daemon version:", data.version)
+        Store.setConnectionStatus("connected")
         if data.revision then
             Store.setRevision(data.revision)
         end
     elseif eventType == "error" then
-        warn("[DetAI] WebSocket error:", data.error)
+        warn("[Bakable] WebSocket error:", data.error)
         wsConnected = false
     elseif eventType == "devtools.call" then
         -- Handle DevTools MCP call
@@ -436,7 +436,7 @@ function DaemonClient.connectFull(): boolean
     -- Then connect WebSocket for live updates
     local wsOk = DaemonClient.connectWebSocket()
     if not wsOk then
-        warn("[DetAI] WebSocket failed but HTTP is working - falling back to polling")
+        warn("[Bakable] WebSocket failed but HTTP is working - falling back to polling")
     end
 
     return true

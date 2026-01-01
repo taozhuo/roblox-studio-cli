@@ -125,7 +125,7 @@ fn main() {
     tracing_subscriber::fmt::init();
 
     // Build system tray menu
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit DetAI");
+    let quit = CustomMenuItem::new("quit".to_string(), "Quit Bakable");
     let status = CustomMenuItem::new("status".to_string(), "Status: Starting...").disabled();
     let reinstall = CustomMenuItem::new("reinstall".to_string(), "Reinstall Plugin");
     let check_update = CustomMenuItem::new("check_update".to_string(), "Check for Updates");
@@ -158,14 +158,14 @@ fn main() {
                         match plugin::install_plugin() {
                             Ok(_) => {
                                 let _ = tauri::api::notification::Notification::new(&app.config().tauri.bundle.identifier)
-                                    .title("DetAI")
+                                    .title("Bakable")
                                     .body("Plugin reinstalled successfully! Restart Roblox Studio to use it.")
                                     .show();
                             }
                             Err(e) => {
                                 error!("Failed to reinstall plugin: {}", e);
                                 let _ = tauri::api::notification::Notification::new(&app.config().tauri.bundle.identifier)
-                                    .title("DetAI Error")
+                                    .title("Bakable Error")
                                     .body(&format!("Failed to reinstall plugin: {}", e))
                                     .show();
                             }
@@ -190,7 +190,7 @@ fn main() {
             _ => {}
         })
         .setup(|app| {
-            info!("DetAI Desktop starting up...");
+            info!("Bakable Desktop starting up...");
 
             // Install plugin on first run
             match plugin::install_plugin() {
@@ -198,8 +198,8 @@ fn main() {
                     if installed {
                         info!("Plugin installed successfully");
                         let _ = tauri::api::notification::Notification::new(&app.config().tauri.bundle.identifier)
-                            .title("DetAI")
-                            .body("Plugin installed! Open Roblox Studio to use DetAI.")
+                            .title("Bakable")
+                            .body("Plugin installed! Open Roblox Studio to use Bakable.")
                             .show();
                     } else {
                         info!("Plugin already installed");
@@ -225,7 +225,7 @@ fn main() {
             let tray_handle = app.tray_handle();
             let _ = tray_handle.get_item("status").set_title("Status: Running (port 4850)");
 
-            info!("DetAI Desktop ready");
+            info!("Bakable Desktop ready");
             Ok(())
         })
         .run(tauri::generate_context!())

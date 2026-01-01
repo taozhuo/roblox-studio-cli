@@ -1,8 +1,8 @@
 --!strict
 --[[
-    DetAI Studio Plugin
+    Bakable Studio Plugin
     Thin API bridge - exposes Roblox Studio APIs to the daemon
-    UI is handled by the DetAI Desktop app (Tauri)
+    UI is handled by the Bakable Desktop app (Tauri)
 ]]
 
 local Store = require(script.State.Store)
@@ -25,9 +25,9 @@ local function createStatusWidget()
         120, 32
     )
 
-    statusWidget = plugin:CreateDockWidgetPluginGui("DetAI_Status", widgetInfo)
-    statusWidget.Title = "DetAI"
-    statusWidget.Name = "DetAI_Status"
+    statusWidget = plugin:CreateDockWidgetPluginGui("Bakable_Status", widgetInfo)
+    statusWidget.Title = "Bakable"
+    statusWidget.Name = "Bakable_Status"
 
     -- Simple status display
     local frame = Instance.new("Frame")
@@ -64,11 +64,11 @@ local function updateStatus(connected: boolean, message: string?)
 end
 
 -- Toolbar setup
-local toolbar = plugin:CreateToolbar("DetAI")
+local toolbar = plugin:CreateToolbar("Bakable")
 
 local statusButton = toolbar:CreateButton(
     "Status",
-    "Show DetAI connection status",
+    "Show Bakable connection status",
     "rbxassetid://4458901886"
 )
 
@@ -80,7 +80,7 @@ end)
 
 -- Initialize
 local function init()
-    print("[DetAI] Initializing plugin (thin bridge mode)...")
+    print("[Bakable] Initializing plugin (thin bridge mode)...")
 
     -- Pass plugin reference to DevTools modules
     Elements.setPlugin(plugin)
@@ -93,7 +93,7 @@ local function init()
     local savedToken = plugin:GetSetting("DaemonToken")
     if savedToken and savedToken ~= "" then
         Store.setDaemonConfig(Store.getState().daemonUrl, savedToken)
-        print("[DetAI] Loaded saved daemon token")
+        print("[Bakable] Loaded saved daemon token")
     end
 
     -- Auto-connect to daemon
@@ -103,12 +103,12 @@ local function init()
         local connected = DaemonClient.connectFull()
         if connected then
             updateStatus(true, "Connected")
-            print("[DetAI] Connected to daemon")
+            print("[Bakable] Connected to daemon")
             -- Send session info to daemon
             DevTools.sendSessionInfo()
         else
             updateStatus(false, "No daemon")
-            print("[DetAI] Daemon not available")
+            print("[Bakable] Daemon not available")
         end
 
         -- Periodic reconnection check
@@ -127,12 +127,12 @@ local function init()
         end
     end)
 
-    print("[DetAI] Plugin ready (UI in DetAI Desktop app)")
+    print("[Bakable] Plugin ready (UI in Bakable Desktop app)")
 end
 
 -- Cleanup
 plugin.Unloading:Connect(function()
-    print("[DetAI] Unloading plugin...")
+    print("[Bakable] Unloading plugin...")
     DaemonClient.disconnectWebSocket()
 
     if statusWidget then

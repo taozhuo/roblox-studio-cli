@@ -29,22 +29,23 @@ local Memory: any = nil
 
 -- Initialize all handlers
 function ToolHandler.init()
-    -- Load handler modules
-    local success, err = pcall(function()
-        Elements = require(script.Parent.Elements)
-        Console = require(script.Parent.Console)
-        Sources = require(script.Parent.Sources)
-        History = require(script.Parent.History)
-        Studio = require(script.Parent.Studio)
-        -- These are placeholders for now
-        -- Network = require(script.Parent.Network)
-        -- Performance = require(script.Parent.Performance)
-        -- Memory = require(script.Parent.Memory)
-    end)
+    -- Load handler modules individually so one failure doesn't stop others
+    local ok, err
 
-    if not success then
-        warn("[DevTools] Some handlers failed to load:", err)
-    end
+    ok, err = pcall(function() Elements = require(script.Parent.Elements) end)
+    if not ok then warn("[Bakable] Elements failed to load:", err) end
+
+    ok, err = pcall(function() Console = require(script.Parent.Console) end)
+    if not ok then warn("[Bakable] Console failed to load:", err) end
+
+    ok, err = pcall(function() Sources = require(script.Parent.Sources) end)
+    if not ok then warn("[Bakable] Sources failed to load:", err) end
+
+    ok, err = pcall(function() History = require(script.Parent.History) end)
+    if not ok then warn("[Bakable] History failed to load:", err) end
+
+    ok, err = pcall(function() Studio = require(script.Parent.Studio) end)
+    if not ok then warn("[Bakable] Studio failed to load:", err) end
 
     -- Register all tool handlers
     ToolHandler.registerHandlers()
@@ -114,7 +115,17 @@ function ToolHandler.registerHandlers()
         handlers["studio.camera.getModelsInView"] = Studio.getModelsInView
         handlers["studio.camera.set"] = Studio.setCameraPosition
         handlers["studio.camera.focusOn"] = Studio.focusCameraOn
+        handlers["studio.camera.focusOnSelection"] = Studio.focusOnSelection
         handlers["studio.camera.scanViewport"] = Studio.scanViewport
+        -- Playtest tools (limited - can't access player during Play mode from plugin)
+        handlers["studio.playtest.getStatus"] = Studio.getPlaytestStatus
+        handlers["studio.playtest.run"] = Studio.runMode
+        handlers["studio.playtest.stop"] = Studio.stopPlaytest
+        -- GUI tools (work in Edit and Play mode)
+        handlers["studio.gui.list"] = Studio.listGuis
+        handlers["studio.gui.toggle"] = Studio.toggleGui
+        handlers["studio.gui.showOnly"] = Studio.showOnlyGui
+        handlers["studio.gui.hideAll"] = Studio.hideAllGuis
     end
 
     -- Runtime Tools (Phase 6) - placeholders
@@ -166,7 +177,7 @@ function ToolHandler.registerHandlers()
     handlers["cloud.place.getInfo"] = function() return false, "Cloud tools are handled by daemon" end
     handlers["cloud.universe.getInfo"] = function() return false, "Cloud tools are handled by daemon" end
 
-    print(string.format("[DevTools] Registered %d tool handlers", ToolHandler.countHandlers()))
+    print(string.format("[Bakable] Registered %d tool handlers", ToolHandler.countHandlers()))
 end
 
 -- Count registered handlers

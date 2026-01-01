@@ -1,12 +1,12 @@
 --!strict
 --[[
-    Global State Store for DetAI Plugin
+    Global State Store for Bakable Plugin
     Single source of truth for all plugin state
 ]]
 
 local HttpService = game:GetService("HttpService")
 
-export type SyncStatus = "disconnected" | "connecting" | "connected" | "syncing" | "error"
+export type SyncStatus = "disconnected" | "connecting" | "connected" | "error"
 
 export type ScriptInfo = {
     detaiId: string,
@@ -15,14 +15,6 @@ export type ScriptInfo = {
     filePath: string?,
     hash: string?,
     text: string?
-}
-
-export type Change = {
-    detaiId: string,
-    filePath: string,
-    hash: string,
-    text: string,
-    conflict: boolean?
 }
 
 export type ChatMessage = {
@@ -38,14 +30,11 @@ export type StoreState = {
     -- Connection
     daemonUrl: string,
     daemonToken: string,
-    syncStatus: SyncStatus,
+    connectionStatus: SyncStatus,
     lastError: string?,
 
-    -- Sync state
-    lastRevision: number,
+    -- Scripts
     scripts: {[string]: ScriptInfo},
-    pendingChanges: {Change},
-    conflicts: {Change},
 
     -- Selection context
     selection: {Instance},
@@ -53,12 +42,6 @@ export type StoreState = {
 
     -- Chat
     messages: {ChatMessage},
-
-    -- UI state
-    activeTab: string,
-    isExporting: boolean,
-    isImporting: boolean,
-    showDiffPreview: boolean
 }
 
 local Store = {}
@@ -68,23 +51,15 @@ Store.__index = Store
 local defaultState: StoreState = {
     daemonUrl = "http://127.0.0.1:4849",
     daemonToken = "",
-    syncStatus = "disconnected",
+    connectionStatus = "disconnected",
     lastError = nil,
 
-    lastRevision = 0,
     scripts = {},
-    pendingChanges = {},
-    conflicts = {},
 
     selection = {},
     selectionContext = nil,
 
     messages = {},
-
-    activeTab = "sync",
-    isExporting = false,
-    isImporting = false,
-    showDiffPreview = false
 }
 
 -- Listeners
@@ -126,9 +101,9 @@ function Store.setDaemonConfig(url: string, token: string)
     })
 end
 
-function Store.setSyncStatus(status: SyncStatus, error: string?)
+function Store.setConnectionStatus(status: SyncStatus, error: string?)
     Store.setState({
-        syncStatus = status,
+        connectionStatus = status,
         lastError = error
     })
 end
@@ -147,21 +122,6 @@ function Store.clearScripts()
     Store.setState({ scripts = {} })
 end
 
-function Store.setPendingChanges(changes: {Change})
-    Store.setState({
-        pendingChanges = changes,
-        showDiffPreview = #changes > 0
-    })
-end
-
-function Store.setConflicts(conflicts: {Change})
-    Store.setState({ conflicts = conflicts })
-end
-
-function Store.setRevision(rev: number)
-    Store.setState({ lastRevision = rev })
-end
-
 function Store.addMessage(msg: ChatMessage)
     local messages = table.clone(state.messages)
     if not msg.id then
@@ -176,18 +136,6 @@ end
 
 function Store.clearMessages()
     Store.setState({ messages = {} })
-end
-
-function Store.setActiveTab(tab: string)
-    Store.setState({ activeTab = tab })
-end
-
-function Store.setExporting(exporting: boolean)
-    Store.setState({ isExporting = exporting })
-end
-
-function Store.setImporting(importing: boolean)
-    Store.setState({ isImporting = importing })
 end
 
 -- Reset to default
