@@ -8,9 +8,117 @@ mod speech;
 
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    Window, PhysicalPosition, PhysicalSize, AppHandle,
 };
 use tracing::{info, error};
 use tracing_subscriber;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+// Swift FFI for window bounds (fast!)
+#[cfg(target_os = "macos")]
+extern "C" {
+    fn get_roblox_studio_window_bounds(
+        out_x: *mut i32,
+        out_y: *mut i32,
+        out_w: *mut i32,
+        out_h: *mut i32,
+    ) -> bool;
+}
+
+static SNAP_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// Get Roblox Studio window bounds via Swift FFI (fast!)
+#[cfg(target_os = "macos")]
+fn get_studio_window_bounds() -> Option<(i32, i32, i32, i32)> {
+    let mut x: i32 = 0;
+    let mut y: i32 = 0;
+    let mut w: i32 = 0;
+    let mut h: i32 = 0;
+
+    let found = unsafe {
+        get_roblox_studio_window_bounds(&mut x, &mut y, &mut w, &mut h)
+    };
+
+    if found {
+        Some((x, y, w, h))
+    } else {
+        None
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn get_studio_window_bounds() -> Option<(i32, i32, i32, i32)> {
+    None
+}
+
+/// Position window to the right of Studio
+fn position_next_to_studio(window: &Window) -> Result<(), String> {
+    let bounds = get_studio_window_bounds()
+        .ok_or_else(|| "Roblox Studio not found".to_string())?;
+
+    let (studio_x, studio_y, studio_w, studio_h) = bounds;
+
+    let detai_width = 420;
+    let detai_x = studio_x + studio_w;
+    let detai_y = studio_y;
+    let detai_h = studio_h;
+
+    window.set_position(PhysicalPosition::new(detai_x, detai_y))
+        .map_err(|e| e.to_string())?;
+    window.set_size(PhysicalSize::new(detai_width, detai_h as u32))
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn snap_to_studio(window: Window) -> Result<String, String> {
+    // Toggle snap mode
+    let was_enabled = SNAP_ENABLED.load(Ordering::SeqCst);
+    let now_enabled = !was_enabled;
+    SNAP_ENABLED.store(now_enabled, Ordering::SeqCst);
+
+    if now_enabled {
+        info!("Snap to Studio enabled");
+        position_next_to_studio(&window)?;
+        Ok("Snap enabled - window will follow Studio".to_string())
+    } else {
+        info!("Snap to Studio disabled");
+        Ok("Snap disabled".to_string())
+    }
+}
+
+#[tauri::command]
+async fn get_snap_status() -> bool {
+    SNAP_ENABLED.load(Ordering::SeqCst)
+}
+
+/// Start background task to keep window snapped to Studio
+fn start_snap_monitor(handle: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        let mut last_bounds: Option<(i32, i32, i32, i32)> = None;
+
+        loop {
+            tokio::time::sleep(Duration::from_millis(8)).await; // ~120fps
+
+            if !SNAP_ENABLED.load(Ordering::SeqCst) {
+                last_bounds = None;
+                continue;
+            }
+
+            if let Some(window) = handle.get_window("main") {
+                if let Some(bounds) = get_studio_window_bounds() {
+                    // Only update if bounds changed
+                    if last_bounds != Some(bounds) {
+                        let _ = position_next_to_studio(&window);
+                        last_bounds = Some(bounds);
+                    }
+                }
+            }
+        }
+    });
+}
 
 fn main() {
     // Initialize logging
@@ -36,6 +144,7 @@ fn main() {
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![snap_to_studio, get_snap_status])
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => {
@@ -108,6 +217,9 @@ fn main() {
                     error!("Failed to start capture server: {}", e);
                 }
             });
+
+            // Start snap-to-studio monitor
+            start_snap_monitor(app.handle());
 
             // Update tray status
             let tray_handle = app.tray_handle();

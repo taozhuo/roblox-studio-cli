@@ -1,3 +1,5 @@
+import { invoke } from '@tauri-apps/api/tauri';
+import { useState, useEffect } from 'react';
 import type { EditorConnection } from '../App';
 import './Sidebar.css';
 
@@ -54,6 +56,22 @@ export default function Sidebar({
   onSelectEditor,
   onClearChat
 }: SidebarProps) {
+  const [snapEnabled, setSnapEnabled] = useState(false);
+
+  useEffect(() => {
+    invoke<boolean>('get_snap_status').then(setSnapEnabled).catch(() => {});
+  }, [open]);
+
+  const handleSnapToggle = async () => {
+    try {
+      await invoke('snap_to_studio');
+      const status = await invoke<boolean>('get_snap_status');
+      setSnapEnabled(status);
+    } catch (e) {
+      console.error('Snap failed:', e);
+    }
+  };
+
   return (
     <>
       <div className={`sidebar-backdrop ${open ? 'open' : ''}`} onClick={onClose} />
@@ -132,6 +150,14 @@ export default function Sidebar({
           {/* Actions */}
           <section className="sidebar-section">
             <h2 className="section-title">Actions</h2>
+            <button className={`action-card ${snapEnabled ? 'active' : ''}`} onClick={handleSnapToggle}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                <line x1="8" y1="21" x2="16" y2="21" />
+                <line x1="12" y1="17" x2="12" y2="21" />
+              </svg>
+              {snapEnabled ? 'Snap: ON' : 'Snap to Studio'}
+            </button>
             <button className="action-card" onClick={() => { onClearChat?.(); onClose(); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6" />

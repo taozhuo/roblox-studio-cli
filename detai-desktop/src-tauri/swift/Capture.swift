@@ -54,6 +54,32 @@ public func getRobloxStudioWindowId() -> Int64 {
     return 0
 }
 
+/// Get Roblox Studio window bounds as (x, y, width, height) packed into Int64s
+/// Returns via out parameters: x, y, w, h. Returns true if found.
+@_cdecl("get_roblox_studio_window_bounds")
+public func getRobloxStudioWindowBounds(_ outX: UnsafeMutablePointer<Int32>,
+                                         _ outY: UnsafeMutablePointer<Int32>,
+                                         _ outW: UnsafeMutablePointer<Int32>,
+                                         _ outH: UnsafeMutablePointer<Int32>) -> Bool {
+    let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+
+    for window in windowList {
+        guard let ownerName = window[kCGWindowOwnerName as String] as? String else { continue }
+
+        if ownerName.lowercased().contains("roblox") {
+            if let bounds = window[kCGWindowBounds as String] as? [String: CGFloat] {
+                outX.pointee = Int32(bounds["X"] ?? 0)
+                outY.pointee = Int32(bounds["Y"] ?? 0)
+                outW.pointee = Int32(bounds["Width"] ?? 0)
+                outH.pointee = Int32(bounds["Height"] ?? 0)
+                return true
+            }
+        }
+    }
+
+    return false
+}
+
 /// Capture Roblox Studio window and return PNG data
 @_cdecl("capture_roblox_studio_window")
 public func captureRobloxStudioWindow() -> UnsafeMutableRawPointer? {
