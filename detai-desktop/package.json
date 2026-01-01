@@ -1,7 +1,7 @@
 {
   "name": "detai-desktop",
   "version": "0.1.0",
-  "description": "DetAI Desktop - AI Assistant for Game Development",
+  "description": "Bakable Desktop - AI Assistant for Game Development",
   "private": true,
   "type": "module",
   "scripts": {

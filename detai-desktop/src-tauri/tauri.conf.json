@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "DetAI",
+    "productName": "Bakable",
     "version": "0.1.0"
   },
   "tauri": {
@@ -30,7 +30,7 @@
     "bundle": {
       "active": true,
       "category": "DeveloperTool",
-      "copyright": "2024 DetAI",
+      "copyright": "2024 Bakable",
       "deb": {
         "depends": []
       },
@@ -42,8 +42,8 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "dev.detai.desktop",
-      "longDescription": "DetAI Desktop - AI Assistant for Game Development. Works with Roblox Studio, Godot, and more.",
+      "identifier": "ai.bakable.desktop",
+      "longDescription": "Bakable - AI Assistant for Game Development. Works with Roblox Studio, Godot, and more.",
       "macOS": {
         "entitlements": null,
         "exceptionDomain": "",
@@ -53,7 +53,7 @@
         "minimumSystemVersion": "12.3"
       },
       "resources": ["../resources/*"],
-      "shortDescription": "DetAI - AI for Game Dev",
+      "shortDescription": "Bakable - AI for Game Dev",
       "targets": "all",
       "windows": {
         "certificateThumbprint": null,
@@ -73,13 +73,13 @@
       "active": true,
       "dialog": true,
       "endpoints": [
-        "https://api.detai.dev/updates/{{target}}/{{arch}}/{{current_version}}"
+        "https://api.bakable.ai/updates/{{target}}/{{arch}}/{{current_version}}"
       ],
       "pubkey": ""
     },
     "windows": [
       {
-        "title": "DetAI",
+        "title": "Bakable",
         "width": 400,
         "height": 650,
         "minWidth": 350,

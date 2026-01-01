@@ -1,15 +1,15 @@
 {
   "name": "roblox-studio-cli",
   "version": "0.2.0",
-  "description": "DetAI - CLI and daemon for AI-powered Roblox Studio development",
+  "description": "Bakable - CLI and daemon for AI-powered Roblox Studio development",
   "type": "module",
   "scripts": {
     "server": "node server/index.js",
     "daemon": "node daemon/index.js",
     "mcp": "node daemon/mcp-stdio.js",
     "cli": "node cli/index.js",
-    "build:plugin": "rojo build plugin.project.json -o DetAI.rbxm",
-    "sync:plugin": "rojo build plugin.project.json -o \"$HOME/Documents/Roblox/Plugins/DetAI.rbxm\""
+    "build:plugin": "rojo build plugin.project.json -o Bakable.rbxm",
+    "sync:plugin": "rojo build plugin.project.json -o \"$HOME/Documents/Roblox/Plugins/Bakable.rbxm\""
   },
   "bin": {
     "studioctl": "./cli/index.js"

@@ -40,7 +40,7 @@ function Console.init()
         Console.addLogEntry(message, messageType)
     end)
 
-    print("[DevTools] Console log capture initialized")
+    print("[Bakable] Console log capture initialized")
 end
 
 -- Add log entry to history

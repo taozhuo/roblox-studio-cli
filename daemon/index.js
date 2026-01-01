@@ -3,7 +3,7 @@
 import 'dotenv/config';
 
 /**
- * DetAI Local Daemon
+ * Bakable Local Daemon
  * Hybrid HTTP + WebSocket server for Roblox Studio integration
  * - HTTP for heavy operations (sync, agent runs)
  * - WebSocket for live streaming (logs, progress, notifications)
@@ -81,9 +81,9 @@ async function loadManifest() {
   try {
     const data = await fs.readFile(manifestPath, 'utf-8');
     manifest = JSON.parse(data);
-    console.log(`[DetAI] Loaded manifest: ${manifest.scripts.length} scripts, revision ${manifest.revision}`);
+    console.log(`[Bakable] Loaded manifest: ${manifest.scripts.length} scripts, revision ${manifest.revision}`);
   } catch (err) {
-    console.log('[DetAI] No existing manifest, starting fresh');
+    console.log('[Bakable] No existing manifest, starting fresh');
   }
 }
 
@@ -159,7 +159,7 @@ function broadcastStudioExec(code) {
 // ============ WebSocket Server ============
 
 wss.on('connection', (ws, req) => {
-  console.log('[DetAI:WS] New connection - auto-accepting');
+  console.log('[Bakable:WS] New connection - auto-accepting');
 
   // Auto-accept all connections (localhost only anyway)
   wsClients.add(ws);
@@ -172,15 +172,15 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (data) => {
     try {
       const msg = JSON.parse(data.toString());
-      console.log('[DetAI:WS] Received:', msg.type);
+      console.log('[Bakable:WS] Received:', msg.type);
     } catch (err) {
-      console.error('[DetAI:WS] Message parse error:', err);
+      console.error('[Bakable:WS] Message parse error:', err);
     }
   });
 
   ws.on('close', () => {
     wsClients.delete(ws);
-    console.log('[DetAI:WS] Client disconnected');
+    console.log('[Bakable:WS] Client disconnected');
     // Clear session when no clients connected
     if (wsClients.size === 0) {
       currentSession = null;
@@ -188,7 +188,7 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('error', (err) => {
-    console.error('[DetAI:WS] Error:', err);
+    console.error('[Bakable:WS] Error:', err);
     wsClients.delete(ws);
     if (wsClients.size === 0) {
       currentSession = null;
@@ -218,7 +218,7 @@ function authMiddleware(req, res, next) {
 app.post('/session/update', (req, res) => {
   const { placeId, gameId, placeName, isPublished, sessionKey } = req.body;
   currentSession = { placeId, gameId, placeName, isPublished, sessionKey };
-  console.log(`[DetAI] Session updated: ${placeName}${isPublished ? ` (ID: ${placeId})` : ' (unpublished)'}`);
+  console.log(`[Bakable] Session updated: ${placeName}${isPublished ? ` (ID: ${placeId})` : ' (unpublished)'}`);
   res.json({ ok: true });
 });
 
@@ -319,7 +319,7 @@ app.post('/chat/stream', async (req, res) => {
       return;
     }
 
-    console.log('[DetAI] Session:', sessionId || '(new session)');
+    console.log('[Bakable] Session:', sessionId || '(new session)');
 
     // Gather Studio context automatically
     sendEvent('status', { message: 'Getting context...' });
@@ -340,7 +340,7 @@ app.post('/chat/stream', async (req, res) => {
     }
     const prompt = message + contextStr;
 
-    const systemPrompt = `You are DetAI, an AI assistant for Roblox Studio game development.
+    const systemPrompt = `You are Bakable, an AI assistant for Roblox Studio game development.
 
 CONTEXT (auto-provided):
 - SELECTION: Currently selected instances
@@ -361,7 +361,7 @@ TOOLS:
 
 Be direct. Execute code. Make changes.`;
 
-    console.log('[DetAI] Stream request:', message.substring(0, 50) + '...');
+    console.log('[Bakable] Stream request:', message.substring(0, 50) + '...');
     sendEvent('status', { message: 'Starting...' });
 
     // Build SDK options - use resume for session continuity
@@ -377,7 +377,7 @@ Be direct. Execute code. Make changes.`;
     // Resume existing session if sessionId provided
     if (sessionId) {
       sdkOptions.resume = sessionId;
-      console.log('[DetAI] Resuming session:', sessionId);
+      console.log('[Bakable] Resuming session:', sessionId);
     }
 
     const response = query({
@@ -389,12 +389,12 @@ Be direct. Execute code. Make changes.`;
     let capturedSessionId = sessionId;
 
     for await (const event of response) {
-      console.log('[DetAI] Event:', event.type);
+      console.log('[Bakable] Event:', event.type);
 
       // Capture session_id from first message
       if (event.session_id && !capturedSessionId) {
         capturedSessionId = event.session_id;
-        console.log('[DetAI] New session created:', capturedSessionId);
+        console.log('[Bakable] New session created:', capturedSessionId);
         sendEvent('session', { sessionId: capturedSessionId });
       }
 
@@ -427,33 +427,79 @@ Be direct. Execute code. Make changes.`;
               // MCP Roblox Studio tools
               'studio.eval': 'Running Lua code',
               'studio.selection.get': 'Getting selection',
-              'studio.selection.set': 'Setting selection',
+              'studio.selection.set': 'Selecting instances',
               'studio.instances.tree': 'Reading instance tree',
               'studio.instances.create': 'Creating instance',
               'studio.instances.delete': 'Deleting instance',
               'studio.instances.getProps': 'Reading properties',
               'studio.instances.setProps': 'Setting properties',
+              'studio.scripts.list': 'Listing scripts',
               'studio.scripts.read': 'Reading script',
               'studio.scripts.write': 'Writing script',
+              'studio.scripts.create': 'Creating script',
               'studio.path.get': 'Getting path data',
-              'studio.path.start': 'Starting path recording',
-              'studio.path.stop': 'Stopping path recording',
+              'studio.path.start': 'Recording path',
+              'studio.path.stop': 'Stopping path',
               'studio.path.clear': 'Clearing path',
+              'studio.path.addPoint': 'Adding path point',
               'studio.pointer.get': 'Getting pointer',
+              'studio.pointer.capture': 'Capturing pointer',
               'studio.pointer.getLast': 'Getting marked position',
-              'studio.history.begin': 'Starting undo waypoint',
-              'studio.history.end': 'Ending undo waypoint',
+              'studio.history.begin': 'Starting undo point',
+              'studio.history.end': 'Saving undo point',
               'studio.history.undo': 'Undoing',
               'studio.history.redo': 'Redoing',
               'studio.logs.getHistory': 'Getting logs',
-              'studio.camera.get': 'Getting camera info',
-              'studio.camera.getModelsInView': 'Finding models in view',
+              'studio.logs.clear': 'Clearing logs',
+              'studio.camera.get': 'Getting camera',
+              'studio.camera.getModelsInView': 'Finding models',
               'studio.camera.set': 'Moving camera',
               'studio.camera.focusOn': 'Focusing camera',
+              'studio.camera.focusOnSelection': 'Focusing on selection',
               'studio.camera.scanViewport': 'Scanning viewport',
+              'studio.captureViewport': 'Capturing screenshot',
+              'studio.getPlaceInfo': 'Getting place info',
+              'studio.getActiveScript': 'Getting active script',
+              'studio.getActiveScriptSource': 'Reading active script',
+              'studio.getStudioInfo': 'Getting Studio info',
+              'studio.openScript': 'Opening script',
+              'studio.getOpenDocuments': 'Getting open docs',
+              'studio.debug.getBreakpoints': 'Getting breakpoints',
+              'studio.debug.addBreakpoint': 'Adding breakpoint',
+              'studio.debug.removeBreakpoint': 'Removing breakpoint',
+              'studio.debug.clearAllBreakpoints': 'Clearing breakpoints',
+              // Runtime tools
+              'runtime.http.captureStart': 'Starting HTTP capture',
+              'runtime.http.captureStop': 'Stopping HTTP capture',
+              'runtime.http.getRecent': 'Getting HTTP logs',
+              'runtime.memory.sample': 'Sampling memory',
+              'runtime.memory.getStats': 'Getting memory stats',
+              'runtime.memory.instanceCount': 'Counting instances',
+              'runtime.perf.span': 'Creating perf span',
+              'runtime.perf.dumpWindow': 'Dumping perf data',
+              'runtime.perf.getStats': 'Getting perf stats',
+              // Playtest tools
+              'studio.playtest.getStatus': 'Checking playtest status',
+              'studio.playtest.play': 'Starting Play mode',
+              'studio.playtest.stop': 'Stopping playtest',
+              'studio.playtest.sendInput': 'Sending keyboard input',
+              // Recording tools
+              'studio.recording.start': 'Starting recording',
+              'studio.recording.stop': 'Stopping recording',
+              'studio.recording.status': 'Checking recording status',
+              'studio.recording.createGif': 'Creating GIF',
+              'studio.recording.createVideo': 'Creating video',
+              'studio.recording.clear': 'Clearing frames',
+              // Cloud tools
+              'cloud.datastore.read': 'Reading DataStore',
+              'cloud.datastore.write': 'Writing DataStore',
+              'cloud.datastore.list': 'Listing DataStore keys',
+              'cloud.place.publish': 'Publishing place',
+              'cloud.place.getInfo': 'Getting place info',
+              'cloud.universe.getInfo': 'Getting universe info',
             };
             const displayName = friendlyNames[toolName] || toolName;
-            console.log('[DetAI] Tool:', displayName);
+            console.log('[Bakable] Tool:', displayName);
             sendEvent('tool_start', { tool: displayName, input: block.input });
           }
         }
@@ -477,7 +523,7 @@ Be direct. Execute code. Make changes.`;
     res.end();
 
   } catch (err) {
-    console.error('[DetAI] Stream error:', err);
+    console.error('[Bakable] Stream error:', err);
     sendEvent('error', { message: err.message });
     res.end();
   }
@@ -522,7 +568,7 @@ app.post('/chat', async (req, res) => {
       prompt = `Previous conversation:\n${historyContext}\n\nUser: ${message}${contextStr}`;
     }
 
-    const systemPrompt = `You are DetAI, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
+    const systemPrompt = `You are Bakable, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
 
 CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
 
@@ -534,7 +580,7 @@ You have MCP tools available to interact with Roblox Studio:
 When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
 Be proactive. Execute code. Make changes. You have full control.`;
 
-    console.log('[DetAI] Chat request:', message.substring(0, 50) + '...');
+    console.log('[Bakable] Chat request:', message.substring(0, 50) + '...');
 
     const response = query({
       prompt,
@@ -580,7 +626,7 @@ Be proactive. Execute code. Make changes. You have full control.`;
     });
 
   } catch (err) {
-    console.error('[DetAI] Chat error:', err);
+    console.error('[Bakable] Chat error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -686,7 +732,7 @@ app.post('/exec/result', async (req, res) => {
       : `EXECUTION ERROR at ${new Date().toISOString()}\n\nError: ${error}`;
     await fs.writeFile(resultPath, content);
   } catch (e) {
-    console.error('[DetAI] Failed to write exec.result.txt:', e);
+    console.error('[Bakable] Failed to write exec.result.txt:', e);
   }
 
   res.json({ ok: true });
@@ -724,7 +770,7 @@ app.post('/sync/pushSnapshot', async (req, res) => {
       return res.status(400).json({ error: 'Invalid scripts array' });
     }
 
-    console.log(`[DetAI] Receiving snapshot: ${scripts.length} scripts`);
+    console.log(`[Bakable] Receiving snapshot: ${scripts.length} scripts`);
 
     await ensureDir(REPO_PATH);
     await ensureDir(path.join(REPO_PATH, 'src'));
@@ -758,11 +804,11 @@ app.post('/sync/pushSnapshot', async (req, res) => {
 
     pendingChanges = [];
 
-    console.log(`[DetAI] Snapshot written, revision: ${manifest.revision}`);
+    console.log(`[Bakable] Snapshot written, revision: ${manifest.revision}`);
     res.json({ ok: true, revision: manifest.revision, scriptCount: scripts.length });
 
   } catch (err) {
-    console.error('[DetAI] pushSnapshot error:', err);
+    console.error('[Bakable] pushSnapshot error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -784,7 +830,7 @@ app.post('/sync/pullChanges', async (req, res) => {
     });
 
   } catch (err) {
-    console.error('[DetAI] pullChanges error:', err);
+    console.error('[Bakable] pullChanges error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -803,7 +849,7 @@ app.post('/agent/run', async (req, res) => {
     const runId = `run_${crypto.randomUUID().substring(0, 8)}`;
     const startedAt = Date.now();
 
-    console.log(`[DetAI:${runId}] Starting agent task: ${task.substring(0, 100)}...`);
+    console.log(`[Bakable:${runId}] Starting agent task: ${task.substring(0, 100)}...`);
 
     agentRuns.set(runId, {
       state: 'running',
@@ -822,7 +868,7 @@ app.post('/agent/run', async (req, res) => {
     broadcastRunProgress(runId, 'running', []);
 
     runAgentTask(runId, task, workDir, scope, context).catch(err => {
-      console.error(`[DetAI:${runId}] Agent error:`, err);
+      console.error(`[Bakable:${runId}] Agent error:`, err);
       const run = agentRuns.get(runId);
       if (run) {
         run.state = 'error';
@@ -834,7 +880,7 @@ app.post('/agent/run', async (req, res) => {
     res.json({ ok: true, runId, startedAt });
 
   } catch (err) {
-    console.error('[DetAI] agent/run error:', err);
+    console.error('[Bakable] agent/run error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -899,7 +945,7 @@ app.post('/agent/cancel', (req, res) => {
   if (run.state === 'running') {
     run.state = 'cancelled';
     run.cancelRequested = true;
-    console.log(`[DetAI:${runId}] Cancel requested`);
+    console.log(`[Bakable:${runId}] Cancel requested`);
     broadcastRunProgress(runId, 'cancelled', run.filesChanged);
   }
 
@@ -915,7 +961,7 @@ async function runAgentTask(runId, task, workDir, scope, context) {
   const addLog = (message) => {
     const log = { timestamp: Date.now(), message };
     run.logs.push(log);
-    console.log(`[DetAI:${runId}] ${message}`);
+    console.log(`[Bakable:${runId}] ${message}`);
     // Broadcast log via WebSocket
     broadcastRunLog(runId, log);
   };
@@ -1113,7 +1159,7 @@ async function runAgentViaCLI(runId, task, workDir, scope, context) {
   const addLog = (message) => {
     const log = { timestamp: Date.now(), message };
     run.logs.push(log);
-    console.log(`[DetAI:${runId}] ${message}`);
+    console.log(`[Bakable:${runId}] ${message}`);
     broadcastRunLog(runId, log);
   };
 
@@ -1196,7 +1242,7 @@ When asked to create something in Roblox, write the Lua script to the correct lo
 function startWatcher() {
   const srcPath = path.join(REPO_PATH, 'src');
 
-  console.log(`[DetAI] Starting file watcher on: ${srcPath}`);
+  console.log(`[Bakable] Starting file watcher on: ${srcPath}`);
 
   watcher = watch(srcPath, {
     ignored: /(^|[\/\\])\../,
@@ -1210,7 +1256,7 @@ function startWatcher() {
 
   watcher.on('add', async (filePath) => {
     if (filePath.endsWith('.lua')) {
-      console.log(`[DetAI] New file detected: ${filePath}`);
+      console.log(`[Bakable] New file detected: ${filePath}`);
     }
   });
 }
@@ -1221,7 +1267,7 @@ async function handleFileChange(absolutePath) {
     const scriptInfo = manifest.scripts.find(s => s.filePath === relativePath);
 
     if (!scriptInfo) {
-      console.log(`[DetAI] Changed file not in manifest: ${relativePath}`);
+      console.log(`[Bakable] Changed file not in manifest: ${relativePath}`);
       return;
     }
 
@@ -1232,7 +1278,7 @@ async function handleFileChange(absolutePath) {
       return;
     }
 
-    console.log(`[DetAI] File changed: ${relativePath}`);
+    console.log(`[Bakable] File changed: ${relativePath}`);
 
     scriptInfo.hash = newHash;
     manifest.revision += 1;
@@ -1257,9 +1303,119 @@ async function handleFileChange(absolutePath) {
     broadcastRepoChanged(manifest.revision, [relativePath]);
 
   } catch (err) {
-    console.error('[DetAI] handleFileChange error:', err);
+    console.error('[Bakable] handleFileChange error:', err);
   }
 }
+
+// ============ Playtest Control (macOS) ============
+
+// Send keystroke to Roblox Studio via osascript
+async function sendKeystrokeToStudio(keyCode, modifiers = []) {
+  return new Promise((resolve, reject) => {
+    let modString = '';
+    if (modifiers.length > 0) {
+      modString = ` using {${modifiers.join(', ')}}`;
+    }
+
+    const script = `
+      tell application "Roblox Studio" to activate
+      delay 0.2
+      tell application "System Events"
+        key code ${keyCode}${modString}
+      end tell
+    `;
+
+    const proc = spawn('osascript', ['-e', script]);
+    let stderr = '';
+
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve({ success: true });
+      } else {
+        reject(new Error(stderr || `osascript exited with code ${code}`));
+      }
+    });
+  });
+}
+
+// Key codes for macOS
+const KEY_CODES = {
+  F5: 96,
+  F6: 97,
+  F7: 98,
+  F8: 99,
+  W: 13,
+  A: 0,
+  S: 1,
+  D: 2,
+  SPACE: 49,
+  SHIFT: 56,
+  ESCAPE: 53,
+};
+
+// Start Play mode (F5)
+app.post('/playtest/play', async (req, res) => {
+  try {
+    await sendKeystrokeToStudio(KEY_CODES.F5);
+    res.json({ success: true, action: 'play', note: 'Sent F5 to start Play mode' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stop playtest (Shift+F5 or just F5 toggle)
+app.post('/playtest/stop', async (req, res) => {
+  try {
+    // Shift+F5 is the standard stop shortcut
+    await sendKeystrokeToStudio(KEY_CODES.F5, ['shift down']);
+    res.json({ success: true, action: 'stop', note: 'Sent Shift+F5 to stop' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send keyboard input (for character control during playtest)
+app.post('/playtest/input', async (req, res) => {
+  const { key, duration = 100 } = req.body;
+
+  if (!key || !KEY_CODES[key.toUpperCase()]) {
+    return res.status(400).json({
+      error: 'Invalid key',
+      validKeys: Object.keys(KEY_CODES)
+    });
+  }
+
+  try {
+    const keyCode = KEY_CODES[key.toUpperCase()];
+
+    // For movement keys, we need to hold them
+    const script = `
+      tell application "Roblox Studio" to activate
+      delay 0.1
+      tell application "System Events"
+        key down (key code ${keyCode})
+        delay ${duration / 1000}
+        key up (key code ${keyCode})
+      end tell
+    `;
+
+    await new Promise((resolve, reject) => {
+      const proc = spawn('osascript', ['-e', script]);
+      proc.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`osascript failed with code ${code}`));
+      });
+    });
+
+    res.json({ success: true, key, duration });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ============ Start Server ============
 
@@ -1271,9 +1427,9 @@ async function start() {
   setPluginCaller(callPluginTool);
   try {
     await registerAllTools();
-    console.log('[DetAI] MCP DevTools initialized');
+    console.log('[Bakable] MCP DevTools initialized');
   } catch (err) {
-    console.error('[DetAI] Failed to initialize MCP tools:', err.message);
+    console.error('[Bakable] Failed to initialize MCP tools:', err.message);
   }
 
   if (manifest.scripts.length > 0) {
@@ -1281,14 +1437,14 @@ async function start() {
   }
 
   server.listen(PORT, '127.0.0.1', () => {
-    console.log(`\n[DetAI] ========================================`);
-    console.log(`[DetAI] Daemon running on http://127.0.0.1:${PORT}`);
-    console.log(`[DetAI] WebSocket endpoint: ws://127.0.0.1:${PORT}/ws`);
-    console.log(`[DetAI] MCP DevTools: ${getToolSchemas().length} tools available`);
-    console.log(`[DetAI] Repo path: ${path.resolve(REPO_PATH)}`);
-    console.log(`[DetAI] ========================================`);
-    console.log(`[DetAI] AUTH TOKEN: ${AUTH_TOKEN}`);
-    console.log(`[DetAI] ========================================\n`);
+    console.log(`\n[Bakable] ========================================`);
+    console.log(`[Bakable] Daemon running on http://127.0.0.1:${PORT}`);
+    console.log(`[Bakable] WebSocket endpoint: ws://127.0.0.1:${PORT}/ws`);
+    console.log(`[Bakable] MCP DevTools: ${getToolSchemas().length} tools available`);
+    console.log(`[Bakable] Repo path: ${path.resolve(REPO_PATH)}`);
+    console.log(`[Bakable] ========================================`);
+    console.log(`[Bakable] AUTH TOKEN: ${AUTH_TOKEN}`);
+    console.log(`[Bakable] ========================================\n`);
   });
 }
 

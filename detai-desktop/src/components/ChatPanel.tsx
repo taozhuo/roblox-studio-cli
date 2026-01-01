@@ -99,7 +99,7 @@ export default function ChatPanel({
               <path d="M16 10L22 13.5V20.5L16 24L10 20.5V13.5L16 10Z" fill="#0c0c0d" fillOpacity="0.4" />
             </svg>
           </div>
-          <span className="header-title">DetAI</span>
+          <span className="header-title">Bakable</span>
         </div>
 
         <div className="header-right">
@@ -172,7 +172,7 @@ export default function ChatPanel({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            placeholder="Message DetAI..."
+            placeholder="Message Bakable..."
             rows={1}
             disabled={isLoading}
           />

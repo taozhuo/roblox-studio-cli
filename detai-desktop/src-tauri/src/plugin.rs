@@ -1,6 +1,6 @@
 //! Roblox Studio plugin installer
 //!
-//! Handles installation of the DetAI.rbxm plugin file to the user's
+//! Handles installation of the Bakable.rbxm plugin file to the user's
 //! Roblox plugins directory.
 
 use std::fs;
@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use tracing::{info, warn};
 
 /// The plugin file bundled with the app
-const PLUGIN_BYTES: &[u8] = include_bytes!("../../resources/DetAI.rbxm");
+const PLUGIN_BYTES: &[u8] = include_bytes!("../../resources/Bakable.rbxm");
 
 /// Get the Roblox plugins directory path
 fn get_plugins_dir() -> Option<PathBuf> {
@@ -39,7 +39,7 @@ pub fn install_plugin() -> Result<bool, String> {
             .map_err(|e| format!("Failed to create plugins directory: {}", e))?;
     }
 
-    let plugin_path = plugins_dir.join("DetAI.rbxm");
+    let plugin_path = plugins_dir.join("Bakable.rbxm");
 
     // Check if plugin already exists with same content
     if plugin_path.exists() {
@@ -68,13 +68,13 @@ pub fn install_plugin() -> Result<bool, String> {
 /// Check if plugin is installed
 pub fn is_plugin_installed() -> bool {
     get_plugins_dir()
-        .map(|dir| dir.join("DetAI.rbxm").exists())
+        .map(|dir| dir.join("Bakable.rbxm").exists())
         .unwrap_or(false)
 }
 
 /// Get the plugin file path
 pub fn get_plugin_path() -> Option<PathBuf> {
-    get_plugins_dir().map(|dir| dir.join("DetAI.rbxm"))
+    get_plugins_dir().map(|dir| dir.join("Bakable.rbxm"))
 }
 
 /// Uninstall the plugin

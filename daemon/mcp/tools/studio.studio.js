@@ -25,7 +25,7 @@ async function callTauri(endpoint, options = {}) {
     const response = await fetch(url, options);
     return response;
   } catch (error) {
-    throw new Error(`Tauri helper not running. Start DetAI Desktop app. (${error.message})`);
+    throw new Error(`Tauri helper not running. Start Bakable Desktop app. (${error.message})`);
   }
 }
 
@@ -204,7 +204,7 @@ export function registerStudioTools(registerTool, callPlugin) {
 
   // studio.captureViewport - Capture Roblox Studio viewport screenshot
   registerTool('studio.captureViewport', {
-    description: 'Capture a screenshot of the Roblox Studio viewport using ScreenCaptureKit. Requires DetAI Desktop helper app to be running.',
+    description: 'Capture a screenshot of the Roblox Studio viewport using ScreenCaptureKit. Requires Bakable Desktop helper app to be running.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -234,7 +234,7 @@ export function registerStudioTools(registerTool, callPlugin) {
           success: false,
           error: error.error || 'Capture failed',
           code: error.code || 'UNKNOWN',
-          hint: 'Make sure DetAI Desktop is running and has screen recording permission'
+          hint: 'Make sure Bakable Desktop is running and has screen recording permission'
         };
       }
 
@@ -253,7 +253,7 @@ export function registerStudioTools(registerTool, callPlugin) {
       return {
         success: false,
         error: error.message,
-        hint: 'Make sure DetAI Desktop app is running'
+        hint: 'Make sure Bakable Desktop app is running'
       };
     }
   });
@@ -343,6 +343,18 @@ export function registerStudioTools(registerTool, callPlugin) {
     }
   }, async (params) => {
     return await callPlugin('studio.camera.focusOn', params);
+  });
+
+  // studio.camera.focusOnSelection - Focus camera on current selection (like pressing F)
+  registerTool('studio.camera.focusOnSelection', {
+    description: "Focus the camera on the current selection, like pressing 'F' in Studio. Automatically calculates the right distance based on the selection's bounding box.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.focusOnSelection', params);
   });
 
   // studio.camera.scanViewport - Scan viewport with grid of raycasts

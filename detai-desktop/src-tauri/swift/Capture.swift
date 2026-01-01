@@ -100,7 +100,7 @@ public func captureRobloxStudioWindow() -> UnsafeMutableRawPointer? {
 
     // Wait with 10 second timeout
     if semaphore.wait(timeout: .now() + 10) == .timedOut {
-        print("[DetAI] Capture timed out")
+        print("[Bakable] Capture timed out")
         return nil
     }
 
@@ -160,7 +160,7 @@ private func captureUsingCGWindowList() -> Data? {
     }
 
     guard targetWindowId != 0 else {
-        print("[DetAI] Roblox Studio window not found")
+        print("[Bakable] Roblox Studio window not found")
         return nil
     }
 
@@ -171,7 +171,7 @@ private func captureUsingCGWindowList() -> Data? {
         targetWindowId,
         [.boundsIgnoreFraming, .nominalResolution]
     ) else {
-        print("[DetAI] CGWindowListCreateImage failed")
+        print("[Bakable] CGWindowListCreateImage failed")
         return nil
     }
 
@@ -180,11 +180,11 @@ private func captureUsingCGWindowList() -> Data? {
     guard let tiffData = nsImage.tiffRepresentation,
           let bitmap = NSBitmapImageRep(data: tiffData),
           let pngData = bitmap.representation(using: .png, properties: [:]) else {
-        print("[DetAI] Failed to encode PNG")
+        print("[Bakable] Failed to encode PNG")
         return nil
     }
 
-    print("[DetAI] Captured \(pngData.count) bytes (\(cgImage.width)x\(cgImage.height)) via CGWindowList")
+    print("[Bakable] Captured \(pngData.count) bytes (\(cgImage.width)x\(cgImage.height)) via CGWindowList")
     return pngData
 }
 
@@ -212,11 +212,11 @@ private func captureWithScreenshotManager() async -> Data? {
             return appName.lowercased().contains("roblox") ||
                    bundleId.lowercased().contains("roblox")
         }) else {
-            print("[DetAI] Roblox Studio window not found via SCK")
+            print("[Bakable] Roblox Studio window not found via SCK")
             return nil
         }
 
-        print("[DetAI] Found: \(studioWindow.owningApplication?.applicationName ?? "?") - \(studioWindow.title ?? "?")")
+        print("[Bakable] Found: \(studioWindow.owningApplication?.applicationName ?? "?") - \(studioWindow.title ?? "?")")
 
         // Configure capture
         let config = SCStreamConfiguration()
@@ -239,15 +239,15 @@ private func captureWithScreenshotManager() async -> Data? {
         guard let tiffData = nsImage.tiffRepresentation,
               let bitmap = NSBitmapImageRep(data: tiffData),
               let pngData = bitmap.representation(using: .png, properties: [:]) else {
-            print("[DetAI] Failed to encode PNG")
+            print("[Bakable] Failed to encode PNG")
             return nil
         }
 
-        print("[DetAI] Captured \(pngData.count) bytes (\(cgImage.width)x\(cgImage.height)) via SCK")
+        print("[Bakable] Captured \(pngData.count) bytes (\(cgImage.width)x\(cgImage.height)) via SCK")
         return pngData
 
     } catch {
-        print("[DetAI] Capture error: \(error)")
+        print("[Bakable] Capture error: \(error)")
         return nil
     }
 }
@@ -256,6 +256,6 @@ private func captureWithScreenshotManager() async -> Data? {
 private func captureWithStreamOutput() async -> Data? {
     // For older macOS, the CGWindowList method should work
     // This is a placeholder if we need more sophisticated SCK capture
-    print("[DetAI] Using CGWindowList fallback for macOS < 14.0")
+    print("[Bakable] Using CGWindowList fallback for macOS < 14.0")
     return nil
 }

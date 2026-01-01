@@ -629,7 +629,7 @@ local function addPathPoint(forceAdd: boolean?): boolean
 
         lastPointPosition = newPos
 
-        print(string.format("[DevTools] Path point %d added at (%.1f, %.1f, %.1f)",
+        print(string.format("[Bakable] Path point %d added at (%.1f, %.1f, %.1f)",
             pointIndex, newPos.X, newPos.Y, newPos.Z))
 
         return true
@@ -691,7 +691,7 @@ function Elements.startPath(params: any): (boolean, any)
             isDragging = false
         end))
 
-        print("[DevTools] Path recording started - click and drag to draw path")
+        print("[Bakable] Path recording started - click and drag to draw path")
     else
         -- Fallback to UserInputService
         table.insert(pathConnections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -714,7 +714,7 @@ function Elements.startPath(params: any): (boolean, any)
             end
         end))
 
-        print("[DevTools] Path recording started (fallback mode) - click and drag to draw")
+        print("[Bakable] Path recording started (fallback mode) - click and drag to draw")
     end
 
     return true, {
@@ -744,7 +744,7 @@ function Elements.stopPath(params: any): (boolean, any)
     -- Clear visuals (optional - could keep them until clearPath)
     clearVisuals()
 
-    print(string.format("[DevTools] Path recording stopped - %d points captured", #pathPoints))
+    print(string.format("[Bakable] Path recording stopped - %d points captured", #pathPoints))
 
     return true, {
         recording = false,
