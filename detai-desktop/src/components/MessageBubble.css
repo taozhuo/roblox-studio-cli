@@ -1,33 +1,44 @@
+/* Slack-like message styling */
 .message {
   display: flex;
-  gap: 12px;
-  max-width: 100%;
-  animation: slideUp 0.3s ease;
+  gap: 8px;
+  padding: 4px 0;
+  animation: slideUp 0.2s ease;
 }
 
-.message.last {
-  animation: slideUp 0.3s ease;
-}
-
-.message.user {
-  flex-direction: row-reverse;
+.message:hover {
+  background: var(--bg-hover);
+  margin: 0 -10px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
 }
 
 /* Avatar */
 .message-avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.message.assistant .message-avatar {
   background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-500) 100%);
-  border-radius: var(--radius-md);
   color: white;
 }
 
-.message-avatar.system {
-  background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+.message.user .message-avatar {
+  background: var(--bg-active);
+  color: var(--text-secondary);
+}
+
+.message.system .message-avatar {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
 }
 
 /* Body */
@@ -36,45 +47,41 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.message.user .message-body {
-  align-items: flex-end;
+/* Header with name and time */
+.message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
-/* Content */
-.message-content {
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
-  line-height: 1.6;
-}
-
-.message.user .message-content {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-  color: white;
-  border-bottom-right-radius: var(--radius-sm);
-  max-width: 85%;
-}
-
-.message.assistant .message-content {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
+.message-name {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-primary);
-  border-top-left-radius: var(--radius-sm);
+}
+
+.message.assistant .message-name {
+  color: var(--primary-400);
+}
+
+.message-time {
+  font-size: 10px;
+  color: var(--text-quaternary);
+}
+
+/* Content - flat, no bubble */
+.message-content {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary);
 }
 
 .message.system .message-content {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
   color: var(--warning);
-}
-
-/* Time */
-.message-time {
-  font-size: 11px;
-  color: var(--text-quaternary);
-  padding: 0 4px;
+  font-size: 12px;
 }
 
 /* Markdown - Paragraphs */
@@ -83,18 +90,18 @@
 }
 
 .message-content p + p {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 /* Markdown - Lists */
 .message-content ul,
 .message-content ol {
-  margin: 10px 0;
-  padding-left: 20px;
+  margin: 6px 0;
+  padding-left: 18px;
 }
 
 .message-content li {
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 .message-content li::marker {
@@ -104,30 +111,16 @@
 /* Markdown - Links */
 .message-content a {
   color: var(--primary-400);
-  text-decoration: underline;
-  text-decoration-color: rgba(129, 140, 248, 0.3);
-  text-underline-offset: 2px;
-  transition: all var(--transition-fast);
+  text-decoration: none;
 }
 
 .message-content a:hover {
-  color: var(--primary-300);
-  text-decoration-color: var(--primary-300);
-}
-
-.message.user .message-content a {
-  color: rgba(255, 255, 255, 0.9);
-  text-decoration-color: rgba(255, 255, 255, 0.4);
+  text-decoration: underline;
 }
 
 /* Markdown - Strong & Em */
 .message-content strong {
   font-weight: 600;
-  color: var(--text-primary);
-}
-
-.message.user .message-content strong {
-  color: white;
 }
 
 .message-content em {
@@ -137,36 +130,29 @@
 
 /* Markdown - Blockquote */
 .message-content blockquote {
-  margin: 12px 0;
-  padding: 12px 16px;
-  border-left: 3px solid var(--primary-500);
-  background: rgba(99, 102, 241, 0.05);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-left: 3px solid var(--border-emphasis);
   color: var(--text-secondary);
-  font-style: italic;
 }
 
 /* Inline Code */
 .inline-code {
-  padding: 2px 6px;
-  background: rgba(99, 102, 241, 0.15);
-  border-radius: 4px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-  font-size: 0.9em;
-  color: var(--primary-300);
-}
-
-.message.user .inline-code {
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.95);
+  padding: 1px 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 0.85em;
+  color: var(--error);
 }
 
 /* Code Block */
 .code-block {
-  margin: 12px 0;
-  background: var(--bg-app);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  margin: 8px 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -174,29 +160,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 4px 8px;
   background: var(--bg-elevated);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .code-lang {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .copy-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 4px;
+  padding: 2px 6px;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
+  font-size: 10px;
+  border-radius: 3px;
 }
 
 .copy-btn:hover {
@@ -204,20 +188,16 @@
   color: var(--text-secondary);
 }
 
-.copy-btn svg {
-  flex-shrink: 0;
-}
-
 .code-block pre {
   margin: 0;
-  padding: 14px 16px;
+  padding: 8px 10px;
   overflow-x: auto;
 }
 
 .code-block code {
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: 'SF Mono', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--text-primary);
   tab-size: 2;
 }

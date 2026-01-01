@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ChatPanel from './components/ChatPanel';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
@@ -19,6 +18,14 @@ export interface EditorConnection {
   url?: string;
 }
 
+export interface Session {
+  placeId: number;
+  gameId: number;
+  placeName: string;
+  isPublished: boolean;
+  sessionKey: string;
+}
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -28,32 +35,54 @@ export default function App() {
   const [activeEditor, setActiveEditor] = useState<string>('Roblox Studio');
   const [daemonConnected, setDaemonConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const lastSessionKey = useRef<string | null>(null);
+  const [claudeSessionId, setClaudeSessionId] = useState<string | null>(null);
 
-  // Check daemon connection
+  // Check daemon connection and session
   useEffect(() => {
     const checkDaemon = async () => {
       try {
         const response = await fetch('http://127.0.0.1:4849/health');
         setDaemonConnected(response.ok);
 
-        // Update Roblox Studio connection status
         if (response.ok) {
           const data = await response.json();
           setEditors(prev => prev.map(e =>
             e.type === 'roblox' ? { ...e, connected: data.pluginConnected || false } : e
           ));
+
+          // Track session
+          if (data.session) {
+            const newSession = data.session as Session;
+            setSession(newSession);
+
+            // Check if session changed
+            if (lastSessionKey.current && lastSessionKey.current !== newSession.sessionKey) {
+              // Session changed - add system message
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(),
+                role: 'system',
+                content: `Switched to: ${newSession.placeName}${newSession.isPublished ? ` (ID: ${newSession.placeId})` : ' (unpublished)'}`,
+                timestamp: new Date()
+              }]);
+            }
+            lastSessionKey.current = newSession.sessionKey;
+          } else {
+            setSession(null);
+          }
         }
       } catch {
         setDaemonConnected(false);
+        setSession(null);
       }
     };
 
     checkDaemon();
-    const interval = setInterval(checkDaemon, 5000);
+    const interval = setInterval(checkDaemon, 3000);
     return () => clearInterval(interval);
   }, []);
-
-  const [currentTool, setCurrentTool] = useState<string | null>(null);
 
   const sendMessage = useCallback(async (content: string) => {
     const userMessage: Message = {
@@ -68,7 +97,6 @@ export default function App() {
     setCurrentTool(null);
 
     try {
-      // Try streaming first, fallback to non-streaming
       const useStreaming = typeof ReadableStream !== 'undefined';
       const endpoint = useStreaming ? 'http://127.0.0.1:4849/chat/stream' : 'http://127.0.0.1:4849/chat';
 
@@ -77,7 +105,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: content,
-          history: messages.slice(-10).map(m => ({ role: m.role, content: m.content }))
+          sessionId: claudeSessionId // Resume session if we have one
         })
       });
 
@@ -86,7 +114,6 @@ export default function App() {
         throw new Error(errData.error || `HTTP ${response.status}`);
       }
 
-      // Non-streaming fallback
       if (!useStreaming || !response.body) {
         const data = await response.json();
         setMessages(prev => [...prev, {
@@ -99,12 +126,10 @@ export default function App() {
       }
 
       const reader = response.body.getReader();
-
       const decoder = new TextDecoder();
       let fullText = '';
       let assistantMsgId = (Date.now() + 1).toString();
 
-      // Add placeholder assistant message
       setMessages(prev => [...prev, {
         id: assistantMsgId,
         role: 'assistant',
@@ -130,18 +155,22 @@ export default function App() {
                   m.id === assistantMsgId ? { ...m, content: fullText } : m
                 ));
               } else if (data.type === 'tool_start') {
-                setCurrentTool(`🔧 ${data.tool}`);
+                setCurrentTool(data.tool);
               } else if (data.type === 'tool_end') {
                 setCurrentTool(null);
               } else if (data.type === 'status') {
-                setCurrentTool(`⏳ ${data.message}`);
+                setCurrentTool(data.message);
+              } else if (data.type === 'session') {
+                // Capture session ID for conversation continuity
+                setClaudeSessionId(data.sessionId);
+                console.log('Session ID:', data.sessionId);
               } else if (data.type === 'error') {
                 throw new Error(data.message);
               } else if (data.type === 'done') {
                 setCurrentTool(null);
               }
             } catch (e) {
-              // Ignore parse errors for incomplete chunks
+              // Ignore parse errors
             }
           }
         }
@@ -155,15 +184,10 @@ export default function App() {
 
     } catch (error) {
       console.error('Chat error:', error);
-      let errorText = 'Unknown error';
-      if (error instanceof Error) {
-        errorText = error.message;
-      }
-
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'system',
-        content: `Error: ${errorText}`,
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -171,21 +195,11 @@ export default function App() {
       setIsLoading(false);
       setCurrentTool(null);
     }
-  }, [messages]);
+  }, [claudeSessionId]);
 
-  const captureViewport = useCallback(async () => {
-    try {
-      const response = await fetch('http://127.0.0.1:4850/capture');
-      if (response.ok) {
-        const blob = await response.blob();
-        // Could display or process the image
-        console.log('Captured viewport:', blob.size, 'bytes');
-        return blob;
-      }
-    } catch (error) {
-      console.error('Capture failed:', error);
-    }
-    return null;
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    setClaudeSessionId(null); // Start fresh session
   }, []);
 
   return (
@@ -196,6 +210,7 @@ export default function App() {
         editors={editors}
         activeEditor={activeEditor}
         onSelectEditor={setActiveEditor}
+        onClearChat={clearChat}
       />
 
       <main className="main-content">
@@ -204,7 +219,7 @@ export default function App() {
           isLoading={isLoading}
           onSendMessage={sendMessage}
           onMenuClick={() => setSidebarOpen(true)}
-          onCaptureViewport={captureViewport}
+          session={session}
         />
       </main>
 
@@ -213,6 +228,7 @@ export default function App() {
         currentTool={currentTool}
         editorConnected={editors.find(e => e.name === activeEditor)?.connected || false}
         activeEditor={activeEditor}
+        session={session}
       />
     </div>
   );

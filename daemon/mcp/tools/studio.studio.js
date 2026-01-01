@@ -30,6 +30,18 @@ async function callTauri(endpoint, options = {}) {
 }
 
 export function registerStudioTools(registerTool, callPlugin) {
+  // studio.getPlaceInfo - Get current place ID and name
+  registerTool('studio.getPlaceInfo', {
+    description: 'Get information about the current place being edited, including PlaceId, name, and whether it is published.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.getPlaceInfo', params);
+  });
+
   // studio.getActiveScript - Get currently active script in editor
   registerTool('studio.getActiveScript', {
     description: 'Get the currently active/focused script in the Studio editor. Returns script name, path, and line count.',
@@ -244,6 +256,156 @@ export function registerStudioTools(registerTool, callPlugin) {
         hint: 'Make sure DetAI Desktop app is running'
       };
     }
+  });
+
+  // ============ Camera Tools ============
+
+  // studio.camera.get - Get camera position and orientation
+  registerTool('studio.camera.get', {
+    description: 'Get the current camera position, orientation (look vector), field of view, and viewport size. Useful for understanding what the user is looking at.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.get', params);
+  });
+
+  // studio.camera.raycast - Raycast from camera center
+  registerTool('studio.camera.raycast', {
+    description: 'Cast a ray from the camera center in the look direction to find what the user is looking at. Returns the hit part, model, position, and distance.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        maxDistance: {
+          type: 'number',
+          description: 'Maximum raycast distance in studs (default: 1000)'
+        }
+      },
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.raycast', params);
+  });
+
+  // studio.camera.getModelsInView - Get models in front of camera
+  registerTool('studio.camera.getModelsInView', {
+    description: 'Get all models and parts in front of the camera using a spatial query. Useful for understanding what objects are visible in the viewport.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        distance: {
+          type: 'number',
+          description: 'How far in front of camera to query (default: 100 studs)'
+        },
+        radius: {
+          type: 'number',
+          description: 'Radius of the query sphere (default: 50 studs)'
+        }
+      },
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.getModelsInView', params);
+  });
+
+  // studio.camera.screenRaycast - Raycast at screen position
+  registerTool('studio.camera.screenRaycast', {
+    description: 'Cast a ray from a specific screen position (pixel coordinates) to find what object is at that location. Defaults to center of screen.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        x: {
+          type: 'number',
+          description: 'Screen X coordinate (pixels from left). Defaults to center.'
+        },
+        y: {
+          type: 'number',
+          description: 'Screen Y coordinate (pixels from top). Defaults to center.'
+        },
+        maxDistance: {
+          type: 'number',
+          description: 'Maximum raycast distance (default: 1000)'
+        }
+      },
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.screenRaycast', params);
+  });
+
+  // studio.camera.set - Move camera to position
+  registerTool('studio.camera.set', {
+    description: 'Move the camera to a specific position and optionally look at a target point. Use this to navigate around the scene.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        position: {
+          type: 'object',
+          description: 'Camera position {x, y, z}',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' }
+          }
+        },
+        lookAt: {
+          type: 'object',
+          description: 'Point to look at {x, y, z}',
+          properties: {
+            x: { type: 'number' },
+            y: { type: 'number' },
+            z: { type: 'number' }
+          }
+        }
+      },
+      required: ['position']
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.set', params);
+  });
+
+  // studio.camera.focusOn - Focus camera on an instance
+  registerTool('studio.camera.focusOn', {
+    description: 'Move the camera to look at a specific instance (Model or Part). The camera will position itself at a distance and orient to face the target.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: {
+          type: 'string',
+          description: "Full path to the instance (e.g., 'game/Workspace/MyModel')"
+        },
+        distance: {
+          type: 'number',
+          description: 'Distance from target (default: 20 studs)'
+        }
+      },
+      required: ['path']
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.focusOn', params);
+  });
+
+  // studio.camera.scanViewport - Scan viewport with grid of raycasts
+  registerTool('studio.camera.scanViewport', {
+    description: 'Scan the viewport with a grid of raycasts to understand what is visible. Returns spatial positions (left, center, right, etc.) with model names and distances. This is auto-included in context, but can be called manually for a fresh scan.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        gridSize: {
+          type: 'number',
+          description: 'Grid size (default: 3 for 3x3 = 9 rays)'
+        },
+        maxDistance: {
+          type: 'number',
+          description: 'Max raycast distance (default: 500)'
+        }
+      },
+      required: []
+    }
+  }, async (params) => {
+    return await callPlugin('studio.camera.scanViewport', params);
   });
 
 }

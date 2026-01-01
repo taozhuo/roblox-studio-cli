@@ -1,3 +1,4 @@
+import type { Session } from '../App';
 import './StatusBar.css';
 
 interface StatusBarProps {
@@ -5,13 +6,15 @@ interface StatusBarProps {
   editorConnected: boolean;
   activeEditor: string;
   currentTool?: string | null;
+  session?: Session | null;
 }
 
 export default function StatusBar({
   daemonConnected,
   editorConnected,
   activeEditor,
-  currentTool
+  currentTool,
+  session
 }: StatusBarProps) {
   return (
     <footer className="status-bar">
@@ -25,10 +28,22 @@ export default function StatusBar({
           <span className="status-dot" />
           <span className="status-text">{activeEditor}</span>
         </div>
+        {session && (
+          <>
+            <div className="status-divider" />
+            <div className="status-indicator session-info">
+              <span className="status-text session-name">{session.placeName}</span>
+              {session.isPublished && (
+                <span className="session-id">#{session.placeId}</span>
+              )}
+            </div>
+          </>
+        )}
         {currentTool && (
           <>
             <div className="status-divider" />
             <div className="status-indicator tool-active">
+              <span className="tool-spinner" />
               <span className="status-text tool-text">{currentTool}</span>
             </div>
           </>

@@ -59,4 +59,38 @@ function DevTools.sendResult(callId: string, success: boolean, result: any): ()
     end
 end
 
+-- Send session/place info to daemon (called on connect and place change)
+function DevTools.sendSessionInfo(): ()
+    local Store = require(script.Parent.State.Store)
+    local state = Store.getState()
+    local url = state.daemonUrl .. "/session/update"
+
+    local placeId = game.PlaceId
+    local gameId = game.GameId
+    local placeName = game.Name
+
+    local body = HttpService:JSONEncode({
+        placeId = placeId,
+        gameId = gameId,
+        placeName = placeName,
+        isPublished = placeId ~= 0,
+        sessionKey = placeId ~= 0 and tostring(placeId) or ("local_" .. placeName)
+    })
+
+    local requestSuccess = pcall(function()
+        HttpService:RequestAsync({
+            Url = url,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = body
+        })
+    end)
+
+    if requestSuccess then
+        print("[DevTools] Session info sent:", placeName, placeId ~= 0 and ("(ID: " .. placeId .. ")") or "(unpublished)")
+    end
+end
+
 return DevTools
