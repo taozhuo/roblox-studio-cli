@@ -49,6 +49,9 @@ const agentRuns = new Map();
 // WebSocket clients
 const wsClients = new Set();
 
+// Current session (pushed from plugin)
+let currentSession = null;
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -178,11 +181,18 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     wsClients.delete(ws);
     console.log('[DetAI:WS] Client disconnected');
+    // Clear session when no clients connected
+    if (wsClients.size === 0) {
+      currentSession = null;
+    }
   });
 
   ws.on('error', (err) => {
     console.error('[DetAI:WS] Error:', err);
     wsClients.delete(ws);
+    if (wsClients.size === 0) {
+      currentSession = null;
+    }
   });
 });
 
@@ -202,6 +212,16 @@ function authMiddleware(req, res, next) {
   next();
 }
 
+// ============ Session/Place tracking (pushed from plugin) ============
+
+// Plugin pushes session info when connected
+app.post('/session/update', (req, res) => {
+  const { placeId, gameId, placeName, isPublished, sessionKey } = req.body;
+  currentSession = { placeId, gameId, placeName, isPublished, sessionKey };
+  console.log(`[DetAI] Session updated: ${placeName}${isPublished ? ` (ID: ${placeId})` : ' (unpublished)'}`);
+  res.json({ ok: true });
+});
+
 // ============ Health Check (no auth) ============
 
 app.get('/health', (req, res) => {
@@ -210,8 +230,18 @@ app.get('/health', (req, res) => {
     version: '0.3',
     agentSdkEnabled: true,
     wsEnabled: true,
-    pluginConnected: wsClients.size > 0
+    pluginConnected: wsClients.size > 0,
+    session: currentSession
   });
+});
+
+// Session endpoint - get current session
+app.get('/session', (req, res) => {
+  if (currentSession) {
+    res.json(currentSession);
+  } else {
+    res.status(503).json({ error: 'No session info - plugin not connected yet' });
+  }
 });
 
 // ============ Chat Endpoint using Claude Agent SDK with MCP ============
@@ -228,7 +258,7 @@ const mcpServers = {
   }
 };
 
-// Helper to gather Studio context (selection, path, pointer)
+// Helper to gather Studio context (selection, path, pointer, viewport)
 async function gatherStudioContext() {
   const context = {};
   try {
@@ -255,6 +285,9 @@ async function gatherStudioContext() {
     }
   } catch (e) { /* ignore */ }
 
+  // Note: viewport scan is on-demand via studio.camera.scanViewport tool
+  // AI calls it when needed, not auto-included (reduces latency)
+
   return context;
 }
 
@@ -279,12 +312,14 @@ app.post('/chat/stream', async (req, res) => {
       return;
     }
 
-    const { message, history = [] } = req.body;
+    const { message, sessionId } = req.body;
     if (!message) {
       sendEvent('error', { message: 'Message required' });
       res.end();
       return;
     }
+
+    console.log('[DetAI] Session:', sessionId || '(new session)');
 
     // Gather Studio context automatically
     sendEvent('status', { message: 'Getting context...' });
@@ -296,56 +331,72 @@ app.post('/chat/stream', async (req, res) => {
       contextStr += `\n\nCURRENT SELECTION: ${studioContext.selection.items.map(i => i.path).join(', ')}`;
     }
     if (studioContext.path?.points?.length > 0) {
-      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points): ${JSON.stringify(studioContext.path.points.slice(0, 5))}...`;
+      // Include all path points so Claude can accurately follow the drawn path
+      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points):\n${JSON.stringify(studioContext.path.points)}`;
     }
     if (studioContext.pointer?.position) {
       const p = studioContext.pointer.position;
       contextStr += `\n\nMARKED POSITION: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`;
     }
+    const prompt = message + contextStr;
 
-    let prompt = message + contextStr;
-    if (history.length > 0) {
-      const historyContext = history.map(h =>
-        `${h.role === 'assistant' ? 'Assistant' : 'User'}: ${h.content}`
-      ).join('\n\n');
-      prompt = `Previous conversation:\n${historyContext}\n\nUser: ${message}${contextStr}`;
-    }
+    const systemPrompt = `You are DetAI, an AI assistant for Roblox Studio game development.
 
-    const systemPrompt = `You are DetAI, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
+CONTEXT (auto-provided):
+- SELECTION: Currently selected instances
+- PATH: User-drawn path points
+- POINTER: User-marked position
 
-CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
+SCENE UNDERSTANDING (call when needed):
+When user references something by appearance or position ("the red building", "thing on the left"), use these tools:
+- studio.camera.scanViewport - Get models with positions (left/center/right) and paths
+- studio.captureViewport - Get screenshot to see colors/shapes
+Combine both to identify what user means, then operate on it.
 
-You have MCP tools available to interact with Roblox Studio:
-- studio.selection.get/set - Get or set selected instances
-- studio.instances.tree - Query the instance tree
+TOOLS:
+- studio.eval - Execute Luau code in Studio
+- studio.selection.get/set - Get or set selection
 - studio.instances.create/delete - Create or delete instances
-- studio.eval - Execute Luau code directly in Studio
-- studio.scripts.read/write - Read or write script content
-- studio.path.get - Get recorded path points from user
-- studio.pointer.get - Get marked pointer position
+- studio.camera.focusOn - Move camera to look at something
 
-When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
-Be proactive. Execute code. Make changes. You have full control.`;
+Be direct. Execute code. Make changes.`;
 
     console.log('[DetAI] Stream request:', message.substring(0, 50) + '...');
     sendEvent('status', { message: 'Starting...' });
 
+    // Build SDK options - use resume for session continuity
+    const sdkOptions = {
+      systemPrompt,
+      model: 'sonnet',
+      cwd: REPO_PATH,
+      permissionMode: 'bypassPermissions',
+      allowDangerouslySkipPermissions: true,
+      mcpServers
+    };
+
+    // Resume existing session if sessionId provided
+    if (sessionId) {
+      sdkOptions.resume = sessionId;
+      console.log('[DetAI] Resuming session:', sessionId);
+    }
+
     const response = query({
       prompt,
-      options: {
-        systemPrompt,
-        model: 'sonnet',
-        cwd: REPO_PATH,
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        mcpServers
-      }
+      options: sdkOptions
     });
 
     let fullText = '';
+    let capturedSessionId = sessionId;
 
     for await (const event of response) {
       console.log('[DetAI] Event:', event.type);
+
+      // Capture session_id from first message
+      if (event.session_id && !capturedSessionId) {
+        capturedSessionId = event.session_id;
+        console.log('[DetAI] New session created:', capturedSessionId);
+        sendEvent('session', { sessionId: capturedSessionId });
+      }
 
       if (event.type === 'assistant' && event.message?.content) {
         for (const block of event.message.content) {
@@ -353,9 +404,57 @@ Be proactive. Execute code. Make changes. You have full control.`;
             fullText += block.text;
             sendEvent('text', { content: block.text });
           } else if (block.type === 'tool_use') {
-            // Stream tool calls so UI can show progress
-            const toolName = block.name.replace('mcp__roblox-studio__', '').replace(/_/g, '.');
-            sendEvent('tool_start', { tool: toolName, input: block.input });
+            // Stream tool calls with friendly names
+            let toolName = block.name;
+
+            // Handle MCP tools (mcp__roblox-studio__studio_eval -> studio.eval)
+            if (toolName.startsWith('mcp__')) {
+              toolName = toolName.replace('mcp__roblox-studio__', '').replace(/_/g, '.');
+            }
+
+            const friendlyNames = {
+              // Claude Code built-in tools
+              'Bash': 'Running command',
+              'Read': 'Reading file',
+              'Write': 'Writing file',
+              'Edit': 'Editing file',
+              'Glob': 'Finding files',
+              'Grep': 'Searching code',
+              'TodoRead': 'Reading todos',
+              'TodoWrite': 'Updating todos',
+              'WebFetch': 'Fetching URL',
+              'WebSearch': 'Searching web',
+              // MCP Roblox Studio tools
+              'studio.eval': 'Running Lua code',
+              'studio.selection.get': 'Getting selection',
+              'studio.selection.set': 'Setting selection',
+              'studio.instances.tree': 'Reading instance tree',
+              'studio.instances.create': 'Creating instance',
+              'studio.instances.delete': 'Deleting instance',
+              'studio.instances.getProps': 'Reading properties',
+              'studio.instances.setProps': 'Setting properties',
+              'studio.scripts.read': 'Reading script',
+              'studio.scripts.write': 'Writing script',
+              'studio.path.get': 'Getting path data',
+              'studio.path.start': 'Starting path recording',
+              'studio.path.stop': 'Stopping path recording',
+              'studio.path.clear': 'Clearing path',
+              'studio.pointer.get': 'Getting pointer',
+              'studio.pointer.getLast': 'Getting marked position',
+              'studio.history.begin': 'Starting undo waypoint',
+              'studio.history.end': 'Ending undo waypoint',
+              'studio.history.undo': 'Undoing',
+              'studio.history.redo': 'Redoing',
+              'studio.logs.getHistory': 'Getting logs',
+              'studio.camera.get': 'Getting camera info',
+              'studio.camera.getModelsInView': 'Finding models in view',
+              'studio.camera.set': 'Moving camera',
+              'studio.camera.focusOn': 'Focusing camera',
+              'studio.camera.scanViewport': 'Scanning viewport',
+            };
+            const displayName = friendlyNames[toolName] || toolName;
+            console.log('[DetAI] Tool:', displayName);
+            sendEvent('tool_start', { tool: displayName, input: block.input });
           }
         }
       }
@@ -407,7 +506,8 @@ app.post('/chat', async (req, res) => {
       contextStr += `\n\nCURRENT SELECTION: ${studioContext.selection.items.map(i => i.path).join(', ')}`;
     }
     if (studioContext.path?.points?.length > 0) {
-      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points): ${JSON.stringify(studioContext.path.points.slice(0, 5))}...`;
+      // Include all path points so Claude can accurately follow the drawn path
+      contextStr += `\n\nDRAWN PATH (${studioContext.path.points.length} points):\n${JSON.stringify(studioContext.path.points)}`;
     }
     if (studioContext.pointer?.position) {
       const p = studioContext.pointer.position;

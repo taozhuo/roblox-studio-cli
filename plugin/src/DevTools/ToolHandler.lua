@@ -98,6 +98,7 @@ function ToolHandler.registerHandlers()
 
     -- Studio Tools (Plugin-level features)
     if Studio then
+        handlers["studio.getPlaceInfo"] = Studio.getPlaceInfo
         handlers["studio.getActiveScript"] = Studio.getActiveScript
         handlers["studio.getActiveScriptSource"] = Studio.getActiveScriptSource
         handlers["studio.getStudioInfo"] = Studio.getStudioInfo
@@ -108,6 +109,12 @@ function ToolHandler.registerHandlers()
         handlers["studio.debug.addBreakpoint"] = Studio.addBreakpoint
         handlers["studio.debug.removeBreakpoint"] = Studio.removeBreakpoint
         handlers["studio.debug.clearAllBreakpoints"] = Studio.clearAllBreakpoints
+        -- Camera tools
+        handlers["studio.camera.get"] = Studio.getCameraInfo
+        handlers["studio.camera.getModelsInView"] = Studio.getModelsInView
+        handlers["studio.camera.set"] = Studio.setCameraPosition
+        handlers["studio.camera.focusOn"] = Studio.focusCameraOn
+        handlers["studio.camera.scanViewport"] = Studio.scanViewport
     end
 
     -- Runtime Tools (Phase 6) - placeholders

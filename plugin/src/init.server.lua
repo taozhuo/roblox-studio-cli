@@ -7,6 +7,7 @@
 
 local Store = require(script.State.Store)
 local DaemonClient = require(script.Sync.DaemonClient)
+local DevTools = require(script.DevTools)
 local Elements = require(script.DevTools.Elements)
 local Studio = require(script.DevTools.Studio)
 
@@ -103,6 +104,8 @@ local function init()
         if connected then
             updateStatus(true, "Connected")
             print("[DetAI] Connected to daemon")
+            -- Send session info to daemon
+            DevTools.sendSessionInfo()
         else
             updateStatus(false, "No daemon")
             print("[DetAI] Daemon not available")

@@ -202,6 +202,34 @@
   background: transparent;
 }
 
+/* Action Card */
+.action-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.action-card:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-emphasis);
+}
+
+.action-card.active {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border-color: #6366f1;
+}
+
 /* Info Card */
 .info-card {
   background: var(--bg-surface);
