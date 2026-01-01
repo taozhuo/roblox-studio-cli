@@ -272,23 +272,6 @@ export function registerStudioTools(registerTool, callPlugin) {
     return await callPlugin('studio.camera.get', params);
   });
 
-  // studio.camera.raycast - Raycast from camera center
-  registerTool('studio.camera.raycast', {
-    description: 'Cast a ray from the camera center in the look direction to find what the user is looking at. Returns the hit part, model, position, and distance.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        maxDistance: {
-          type: 'number',
-          description: 'Maximum raycast distance in studs (default: 1000)'
-        }
-      },
-      required: []
-    }
-  }, async (params) => {
-    return await callPlugin('studio.camera.raycast', params);
-  });
-
   // studio.camera.getModelsInView - Get models in front of camera
   registerTool('studio.camera.getModelsInView', {
     description: 'Get all models and parts in front of the camera using a spatial query. Useful for understanding what objects are visible in the viewport.',
@@ -308,31 +291,6 @@ export function registerStudioTools(registerTool, callPlugin) {
     }
   }, async (params) => {
     return await callPlugin('studio.camera.getModelsInView', params);
-  });
-
-  // studio.camera.screenRaycast - Raycast at screen position
-  registerTool('studio.camera.screenRaycast', {
-    description: 'Cast a ray from a specific screen position (pixel coordinates) to find what object is at that location. Defaults to center of screen.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        x: {
-          type: 'number',
-          description: 'Screen X coordinate (pixels from left). Defaults to center.'
-        },
-        y: {
-          type: 'number',
-          description: 'Screen Y coordinate (pixels from top). Defaults to center.'
-        },
-        maxDistance: {
-          type: 'number',
-          description: 'Maximum raycast distance (default: 1000)'
-        }
-      },
-      required: []
-    }
-  }, async (params) => {
-    return await callPlugin('studio.camera.screenRaycast', params);
   });
 
   // studio.camera.set - Move camera to position

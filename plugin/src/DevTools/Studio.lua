@@ -322,56 +322,6 @@ function Studio.getCameraInfo(params: any): (boolean, any)
     }
 end
 
--- Raycast from camera center to find what user is looking at
-function Studio.cameraRaycast(params: any): (boolean, any)
-    local camera = workspace.CurrentCamera
-    if not camera then
-        return false, "No camera found"
-    end
-
-    local maxDistance = params.maxDistance or 1000
-    local origin = camera.CFrame.Position
-    local direction = camera.CFrame.LookVector * maxDistance
-
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {} -- Could filter out certain things
-
-    local result = workspace:Raycast(origin, direction, raycastParams)
-
-    if result then
-        local hitPart = result.Instance
-        local hitPos = result.Position
-        local hitNormal = result.Normal
-
-        -- Get the model if the part is in one
-        local model = hitPart:FindFirstAncestorOfClass("Model")
-
-        return true, {
-            hit = true,
-            part = {
-                name = hitPart.Name,
-                className = hitPart.ClassName,
-                path = hitPart:GetFullName()
-            },
-            model = model and {
-                name = model.Name,
-                className = model.ClassName,
-                path = model:GetFullName()
-            } or nil,
-            position = { x = hitPos.X, y = hitPos.Y, z = hitPos.Z },
-            normal = { x = hitNormal.X, y = hitNormal.Y, z = hitNormal.Z },
-            distance = result.Distance,
-            material = result.Material.Name
-        }
-    else
-        return true, {
-            hit = false,
-            message = "No hit within " .. maxDistance .. " studs"
-        }
-    end
-end
-
 -- Get models/parts in front of camera using spatial query
 function Studio.getModelsInView(params: any): (boolean, any)
     local camera = workspace.CurrentCamera
@@ -543,59 +493,6 @@ function Studio.focusCameraOn(params: any): (boolean, any)
         cameraPosition = { x = newPos.X, y = newPos.Y, z = newPos.Z },
         targetPosition = { x = targetPos.X, y = targetPos.Y, z = targetPos.Z }
     }
-end
-
--- Raycast at specific screen position (for "what's at this pixel" queries)
-function Studio.screenRaycast(params: any): (boolean, any)
-    local camera = workspace.CurrentCamera
-    if not camera then
-        return false, "No camera found"
-    end
-
-    -- Default to center of screen
-    local screenX = params.x or (camera.ViewportSize.X / 2)
-    local screenY = params.y or (camera.ViewportSize.Y / 2)
-    local maxDistance = params.maxDistance or 1000
-
-    local ray = camera:ScreenPointToRay(screenX, screenY)
-    local origin = ray.Origin
-    local direction = ray.Direction * maxDistance
-
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {}
-
-    local result = workspace:Raycast(origin, direction, raycastParams)
-
-    if result then
-        local hitPart = result.Instance
-        local model = hitPart:FindFirstAncestorOfClass("Model")
-
-        return true, {
-            hit = true,
-            screenPosition = { x = screenX, y = screenY },
-            part = {
-                name = hitPart.Name,
-                className = hitPart.ClassName,
-                path = hitPart:GetFullName()
-            },
-            model = model and {
-                name = model.Name,
-                path = model:GetFullName()
-            } or nil,
-            worldPosition = {
-                x = result.Position.X,
-                y = result.Position.Y,
-                z = result.Position.Z
-            },
-            distance = result.Distance
-        }
-    else
-        return true, {
-            hit = false,
-            screenPosition = { x = screenX, y = screenY }
-        }
-    end
 end
 
 -- ============ Debugger Tools ============

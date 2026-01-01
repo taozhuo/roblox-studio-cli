@@ -39,6 +39,7 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const lastSessionKey = useRef<string | null>(null);
   const [claudeSessionId, setClaudeSessionId] = useState<string | null>(null);
+  const toolClearTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Check daemon connection and session
   useEffect(() => {
@@ -129,6 +130,7 @@ export default function App() {
       const decoder = new TextDecoder();
       let fullText = '';
       let assistantMsgId = (Date.now() + 1).toString();
+      let buffer = ''; // Buffer for partial SSE messages
 
       setMessages(prev => [...prev, {
         id: assistantMsgId,
@@ -141,36 +143,60 @@ export default function App() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        // Append new chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6));
+        // Process complete messages (split by double newline)
+        const messages = buffer.split('\n\n');
+        // Keep last incomplete message in buffer
+        buffer = messages.pop() || '';
 
-              if (data.type === 'text') {
-                fullText += data.content;
-                setMessages(prev => prev.map(m =>
-                  m.id === assistantMsgId ? { ...m, content: fullText } : m
-                ));
-              } else if (data.type === 'tool_start') {
-                setCurrentTool(data.tool);
-              } else if (data.type === 'tool_end') {
-                setCurrentTool(null);
-              } else if (data.type === 'status') {
-                setCurrentTool(data.message);
-              } else if (data.type === 'session') {
-                // Capture session ID for conversation continuity
-                setClaudeSessionId(data.sessionId);
-                console.log('Session ID:', data.sessionId);
-              } else if (data.type === 'error') {
-                throw new Error(data.message);
-              } else if (data.type === 'done') {
-                setCurrentTool(null);
+        for (const msg of messages) {
+          const lines = msg.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                console.log('[SSE]', data.type, data); // Debug logging
+
+                if (data.type === 'text') {
+                  fullText += data.content;
+                  setMessages(prev => prev.map(m =>
+                    m.id === assistantMsgId ? { ...m, content: fullText } : m
+                  ));
+                } else if (data.type === 'tool_start') {
+                  console.log('[SSE] Tool started:', data.tool);
+                  // Cancel any pending clear timeout
+                  if (toolClearTimeout.current) {
+                    clearTimeout(toolClearTimeout.current);
+                    toolClearTimeout.current = null;
+                  }
+                  setCurrentTool(data.tool);
+                } else if (data.type === 'tool_end') {
+                  console.log('[SSE] Tool ended');
+                  // Delay clearing so user can see the status
+                  toolClearTimeout.current = setTimeout(() => {
+                    setCurrentTool(null);
+                    toolClearTimeout.current = null;
+                  }, 800);
+                } else if (data.type === 'status') {
+                  if (toolClearTimeout.current) {
+                    clearTimeout(toolClearTimeout.current);
+                    toolClearTimeout.current = null;
+                  }
+                  setCurrentTool(data.message);
+                } else if (data.type === 'session') {
+                  // Capture session ID for conversation continuity
+                  setClaudeSessionId(data.sessionId);
+                  console.log('Session ID:', data.sessionId);
+                } else if (data.type === 'error') {
+                  throw new Error(data.message);
+                } else if (data.type === 'done') {
+                  setCurrentTool(null);
+                }
+              } catch (e) {
+                console.warn('[SSE] Parse error:', e, line);
               }
-            } catch (e) {
-              // Ignore parse errors
             }
           }
         }

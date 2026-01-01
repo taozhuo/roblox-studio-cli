@@ -111,9 +111,7 @@ function ToolHandler.registerHandlers()
         handlers["studio.debug.clearAllBreakpoints"] = Studio.clearAllBreakpoints
         -- Camera tools
         handlers["studio.camera.get"] = Studio.getCameraInfo
-        handlers["studio.camera.raycast"] = Studio.cameraRaycast
         handlers["studio.camera.getModelsInView"] = Studio.getModelsInView
-        handlers["studio.camera.screenRaycast"] = Studio.screenRaycast
         handlers["studio.camera.set"] = Studio.setCameraPosition
         handlers["studio.camera.focusOn"] = Studio.focusCameraOn
         handlers["studio.camera.scanViewport"] = Studio.scanViewport
