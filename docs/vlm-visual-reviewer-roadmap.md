@@ -73,9 +73,547 @@ Released December 2025, Gemini 3 Flash combines Pro-level reasoning with Flash-l
 
 ---
 
-## Use Cases
+## Verification Areas
 
-### 1. UI Layout Verification
+Roblox games have distinct visual domains that require different verification strategies:
+
+| Area | What to Verify | Capture Method | Complexity |
+|------|---------------|----------------|------------|
+| **GUI** | Layout, text, buttons, colors | `gui.showOnly` + screenshot | Low |
+| **Parts/Models** | Shape, size, position, materials | Camera position + screenshot | Medium |
+| **Tools** | Equip state, visual effects, UI | Playtest + recording | Medium |
+| **Animations** | Motion, timing, transitions | GIF recording + frame analysis | High |
+| **Lighting/FX** | Particles, beams, atmosphere | Screenshot comparison | Medium |
+| **Gameplay** | Player movement, interactions | Full playtest recording | High |
+
+---
+
+## Area 1: GUI Verification
+
+### What to Check
+- Layout matches mockup/spec
+- Text is readable and correct
+- Buttons are visible and identifiable
+- Colors match brand/theme
+- No overlapping elements
+- Proper spacing and alignment
+- Responsive to different screen sizes
+
+### Verification Prompt Template
+
+```
+You are reviewing a Roblox ScreenGui screenshot.
+
+EXPECTED UI:
+- Name: {guiName}
+- Layout: {description}
+- Elements: {list of expected elements}
+
+CHECK FOR:
+1. All expected elements present and visible
+2. Text is readable (not too small, good contrast)
+3. Layout matches description (centered, aligned, spaced)
+4. Colors match specification
+5. No visual errors (overflow, overlap, missing assets)
+
+RETURN JSON:
+{
+  "elements": {
+    "expected": ["list"],
+    "found": ["list"],
+    "missing": ["list"]
+  },
+  "layout": {
+    "correct": boolean,
+    "issues": ["list of layout problems"]
+  },
+  "text": {
+    "readable": boolean,
+    "issues": ["list of text problems"]
+  },
+  "colors": {
+    "correct": boolean,
+    "issues": ["list of color mismatches"]
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+### Example Workflow
+
+```javascript
+// Build a shop UI
+await studio.eval({ code: createShopUICode });
+
+// Verify it
+await studio.gui.showOnly({ name: "ShopUI" });
+const screenshot = await studio.recording.captureFrame();
+
+const result = await vlm.verify({
+  image: screenshot,
+  area: "gui",
+  spec: {
+    name: "ShopUI",
+    layout: "Centered modal, 400x500 pixels",
+    elements: [
+      "Title 'SHOP' at top center",
+      "3 item cards in horizontal row",
+      "Each card has: icon, name, price, buy button",
+      "Close X button in top-right corner"
+    ],
+    colors: {
+      background: "dark blue (#1a1a2e)",
+      buttons: "gold (#ffd700)",
+      text: "white"
+    }
+  }
+});
+```
+
+---
+
+## Area 2: Part-Based Modeling
+
+### What to Check
+- Parts exist with correct shapes
+- Sizes match specifications
+- Positions are correct (aligned, spaced)
+- Materials and colors applied
+- Model hierarchy is correct
+- No floating or intersecting parts
+
+### Verification Prompt Template
+
+```
+You are reviewing a Roblox 3D viewport screenshot showing parts/models.
+
+EXPECTED MODEL:
+- Name: {modelName}
+- Description: {what it should look like}
+- Parts: {list of expected parts with properties}
+
+CHECK FOR:
+1. All expected parts visible
+2. Shapes match description (cube, sphere, wedge, etc.)
+3. Proportions look correct
+4. Parts are properly connected (no gaps, no overlap)
+5. Materials/colors match specification
+6. Model is complete (no missing pieces)
+
+RETURN JSON:
+{
+  "partsVisible": {
+    "expected": ["list"],
+    "found": ["list"],
+    "missing": ["list"]
+  },
+  "structure": {
+    "correct": boolean,
+    "issues": ["gaps", "overlaps", "misalignment"]
+  },
+  "appearance": {
+    "materialsCorrect": boolean,
+    "colorsCorrect": boolean,
+    "issues": []
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+### Example Workflow
+
+```javascript
+// Create a simple house model
+await studio.instances.create({
+  parent: "Workspace",
+  className: "Model",
+  name: "House"
+});
+await studio.eval({ code: buildHouseCode });
+
+// Position camera to view it
+await studio.camera.focusOn({ target: "Workspace.House" });
+const screenshot = await studio.recording.captureFrame();
+
+const result = await vlm.verify({
+  image: screenshot,
+  area: "model",
+  spec: {
+    name: "House",
+    description: "Simple house with walls, roof, door, windows",
+    parts: [
+      "4 wall parts forming rectangle",
+      "Triangular roof on top",
+      "Door-shaped opening in front wall",
+      "2 window openings on side walls"
+    ],
+    materials: {
+      walls: "Brick",
+      roof: "Slate",
+      floor: "Wood"
+    }
+  }
+});
+```
+
+---
+
+## Area 3: Tools Verification
+
+### What to Check
+- Tool appears in player's hand when equipped
+- Tool has correct visual appearance
+- Tool UI elements appear (ammo count, cooldown, etc.)
+- Visual effects play correctly (muzzle flash, trails)
+- Tool animations play
+
+### Verification Prompt Template
+
+```
+You are reviewing Roblox gameplay showing a player with an equipped tool.
+
+EXPECTED TOOL:
+- Name: {toolName}
+- Type: {weapon/building/utility}
+- Appearance: {description}
+- UI Elements: {list}
+- Effects: {list of visual effects}
+
+CHECK FOR:
+1. Tool visible in player's hand/character
+2. Tool appearance matches description
+3. UI elements visible (if applicable)
+4. Effects visible when activated (if captured)
+5. Correct positioning relative to character
+
+RETURN JSON:
+{
+  "toolEquipped": boolean,
+  "appearance": {
+    "correct": boolean,
+    "issues": []
+  },
+  "uiElements": {
+    "expected": ["list"],
+    "found": ["list"],
+    "missing": ["list"]
+  },
+  "effects": {
+    "visible": boolean,
+    "issues": []
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+### Example Workflow
+
+```javascript
+// Create and equip a sword tool
+await studio.eval({ code: createSwordCode });
+await studio.playtest.play();
+await waitForPlayer();
+
+// Equip the tool
+await studio.eval({
+  code: `
+    local player = game.Players.LocalPlayer
+    local sword = player.Backpack:FindFirstChild("Sword")
+    player.Character.Humanoid:EquipTool(sword)
+  `
+});
+
+// Capture equipped state
+await wait(500);
+const screenshot = await studio.recording.captureFrame();
+
+const result = await vlm.verify({
+  image: screenshot,
+  area: "tool",
+  spec: {
+    name: "Sword",
+    type: "weapon",
+    appearance: "Medieval sword with silver blade, brown handle",
+    uiElements: [],
+    effects: []
+  }
+});
+
+// Test swing animation
+await studio.recording.start({ fps: 15 });
+await studio.eval({ code: "-- trigger sword swing" });
+await wait(1000);
+await studio.recording.stop();
+const gif = await studio.recording.createGif();
+
+const animResult = await vlm.analyzeAnimation({
+  gif: gif,
+  expectedMotion: "Sword swings in arc from right to left"
+});
+```
+
+---
+
+## Area 4: Animation Verification
+
+### What to Check
+- Animation plays (not stuck on frame 1)
+- Motion matches expected movement
+- Timing feels correct
+- Transitions are smooth
+- Loop is seamless (if looping)
+- No visual glitches
+
+### Verification Prompt Template
+
+```
+You are analyzing a Roblox animation recording (sequence of frames).
+
+EXPECTED ANIMATION:
+- Name: {animationName}
+- Type: {walk/run/attack/idle/custom}
+- Duration: {approximate seconds}
+- Motion: {description of movement}
+- Loop: {yes/no}
+
+ANALYZE FRAMES FOR:
+1. Character/object is moving (not static)
+2. Motion matches expected description
+3. Movement is smooth (no jerky transitions)
+4. Animation appears complete (has start, middle, end)
+5. If looping, last frame connects to first
+
+RETURN JSON:
+{
+  "animationPlays": boolean,
+  "motion": {
+    "detected": "description of observed motion",
+    "matchesExpected": boolean,
+    "issues": []
+  },
+  "quality": {
+    "smooth": boolean,
+    "complete": boolean,
+    "loopSeamless": boolean | null
+  },
+  "timing": {
+    "tooFast": boolean,
+    "tooSlow": boolean,
+    "correct": boolean
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+### Example Workflow
+
+```javascript
+// Test walk animation
+await studio.playtest.play();
+await waitForPlayer();
+
+// Record walking
+await studio.recording.start({ fps: 20 });
+await studio.playtest.sendInput({ keys: ["W"], duration: 2000 });
+await studio.recording.stop();
+const walkGif = await studio.recording.createGif();
+
+const walkResult = await vlm.analyzeAnimation({
+  gif: walkGif,
+  spec: {
+    name: "Walk",
+    type: "walk",
+    duration: 2,
+    motion: "Character walks forward with alternating leg movement",
+    loop: true
+  }
+});
+
+// Test jump animation
+await studio.recording.start({ fps: 20 });
+await studio.playtest.sendInput({ keys: ["Space"], duration: 100 });
+await wait(1500);
+await studio.recording.stop();
+const jumpGif = await studio.recording.createGif();
+
+const jumpResult = await vlm.analyzeAnimation({
+  gif: jumpGif,
+  spec: {
+    name: "Jump",
+    type: "jump",
+    duration: 1.5,
+    motion: "Character jumps up, reaches peak, falls back down",
+    loop: false
+  }
+});
+
+await studio.playtest.stop();
+```
+
+---
+
+## Area 5: Lighting & Effects
+
+### What to Check
+- Particles spawn and animate
+- Beams/trails render correctly
+- Lighting creates expected mood
+- Shadows appear correctly
+- Post-processing effects applied
+
+### Verification Prompt Template
+
+```
+You are reviewing a Roblox scene screenshot focusing on visual effects.
+
+EXPECTED EFFECTS:
+- Lighting: {description of lighting mood}
+- Particles: {list of particle effects}
+- Beams: {list of beam effects}
+- Atmosphere: {fog, bloom, color correction}
+
+CHECK FOR:
+1. Overall lighting matches expected mood
+2. Particle effects visible and active
+3. Beams/trails rendering correctly
+4. Atmospheric effects present
+5. No visual artifacts or glitches
+
+RETURN JSON:
+{
+  "lighting": {
+    "moodCorrect": boolean,
+    "description": "observed lighting",
+    "issues": []
+  },
+  "particles": {
+    "expected": ["list"],
+    "visible": ["list"],
+    "missing": ["list"]
+  },
+  "beams": {
+    "expected": ["list"],
+    "visible": ["list"],
+    "missing": ["list"]
+  },
+  "atmosphere": {
+    "present": boolean,
+    "correct": boolean,
+    "issues": []
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+---
+
+## Area 6: Gameplay Integration
+
+### What to Check
+- Player can move in the world
+- Interactions work (touch, click, proximity)
+- Game mechanics function (collecting, scoring, damage)
+- UI updates reflect game state
+- No errors or freezes
+
+### Verification Prompt Template
+
+```
+You are analyzing a Roblox gameplay recording showing a player testing game mechanics.
+
+TEST SCENARIO:
+{description of what player is testing}
+
+EXPECTED BEHAVIOR:
+{list of expected outcomes}
+
+ANALYZE FOR:
+1. Player successfully performs actions
+2. Game responds correctly to player input
+3. Visual feedback appears (effects, UI updates)
+4. No freezes, errors, or unexpected behavior
+5. Game state changes as expected
+
+RETURN JSON:
+{
+  "actions": [
+    {
+      "action": "what player did",
+      "expectedResult": "what should happen",
+      "actualResult": "what happened",
+      "success": boolean
+    }
+  ],
+  "feedback": {
+    "visualFeedback": boolean,
+    "uiUpdates": boolean,
+    "audioFeedback": "cannot verify"
+  },
+  "errors": {
+    "freezes": boolean,
+    "glitches": boolean,
+    "unexpectedBehavior": []
+  },
+  "pass": boolean,
+  "score": 0-100
+}
+```
+
+### Example Workflow
+
+```javascript
+// Full gameplay test: collect coins
+await studio.playtest.play();
+await waitForPlayer();
+
+// Get initial state
+const initialScore = await studio.eval({
+  code: "return _G.PlayerScore or 0"
+});
+
+// Record gameplay
+await studio.recording.start({ fps: 15 });
+
+// Walk toward coin
+await studio.playtest.sendInput({ keys: ["W"], duration: 3000 });
+
+await studio.recording.stop();
+const gif = await studio.recording.createGif();
+
+// Get final state
+const finalScore = await studio.eval({
+  code: "return _G.PlayerScore or 0"
+});
+
+await studio.playtest.stop();
+
+// Verify with VLM
+const result = await vlm.analyzeGameplay({
+  gif: gif,
+  scenario: "Player walks forward to collect a coin",
+  expectations: [
+    "Player character moves forward",
+    "Coin is visible ahead of player",
+    "Player touches coin",
+    "Coin disappears on contact",
+    "Score UI updates"
+  ],
+  programmaticCheck: {
+    scoreBefore: initialScore,
+    scoreAfter: finalScore,
+    scoreIncreased: finalScore > initialScore
+  }
+});
+```
+
+---
+
+## Use Cases
 
 **Scenario**: AI builds a shop UI, needs to verify it looks correct.
 
