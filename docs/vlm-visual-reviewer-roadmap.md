@@ -8,24 +8,34 @@ Use a fast, low-latency Vision Language Model (Gemini 3 Flash) as an autonomous 
 
 ## Why Gemini 3 Flash?
 
+Released December 2025, Gemini 3 Flash combines Pro-level reasoning with Flash-line speed and efficiency.
+
 | Requirement | Gemini 3 Flash |
 |-------------|------------------|
-| **Latency** | ~200-500ms (fast enough for iterative workflows) |
-| **Cost** | Low (can run many verification checks) |
-| **Vision** | Strong image understanding |
-| **Multimodal** | Can process screenshots, GIFs, video frames |
+| **Latency** | 3x faster than 2.5 Pro |
+| **Cost** | $0.50/1M input, $3.00/1M output tokens |
+| **Vision** | 81.2% on MMMU-Pro (best in class) |
+| **Multimodal** | Screenshots, GIFs, video frames, documents |
 | **Structured Output** | JSON mode for programmatic verification |
+| **Modes** | "Fast" for quick answers, "Thinking" for complex |
 
 ### Comparison
 
-| Model | Latency | Cost | Vision Quality |
-|-------|---------|------|----------------|
-| GPT-4V | 2-5s | High | Excellent |
-| Claude Vision | 1-3s | Medium | Excellent |
-| Gemini 3 Flash | 200-500ms | Low | Good |
-| Gemini 1.5 Pro | 1-2s | Medium | Excellent |
+| Model | Speed | Cost (input/1M) | Vision (MMMU-Pro) |
+|-------|-------|-----------------|-------------------|
+| Gemini 3 Flash | Fastest | $0.50 | 81.2% |
+| Gemini 3 Pro | Fast | ~$2.00 | ~80% |
+| Gemini 2.5 Flash | Fast | $0.30 | ~70% |
+| GPT-4V | Slow | ~$10.00 | ~75% |
+| Claude Vision | Medium | ~$3.00 | ~78% |
 
-**Gemini 3 Flash is ideal for high-frequency verification checks** where we need fast feedback, not deep analysis.
+**Gemini 3 Flash is ideal for high-frequency verification checks** - Pro-level vision quality at Flash-line speed and cost.
+
+### Key Stats
+- 78% on SWE-bench Verified (agentic coding)
+- 33.7% on Humanity's Last Exam (expert reasoning)
+- Processing 1T+ tokens/day on Google's API
+- Used by Salesforce, Workday, Figma
 
 ---
 
@@ -233,7 +243,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
-  model: "gemini-3-flash",
+  model: "gemini-3.0-flash",
   generationConfig: {
     responseMimeType: "application/json"
   }
