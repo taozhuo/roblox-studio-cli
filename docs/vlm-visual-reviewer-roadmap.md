@@ -2,13 +2,13 @@
 
 ## Vision
 
-Use a fast, low-latency Vision Language Model (Gemini 2.0 Flash) as an autonomous visual reviewer that can verify game builds, UI layouts, and gameplay recordings without human intervention.
+Use a fast, low-latency Vision Language Model (Gemini 3 Flash) as an autonomous visual reviewer that can verify game builds, UI layouts, and gameplay recordings without human intervention.
 
 ---
 
-## Why Gemini 2.0 Flash?
+## Why Gemini 3 Flash?
 
-| Requirement | Gemini 2.0 Flash |
+| Requirement | Gemini 3 Flash |
 |-------------|------------------|
 | **Latency** | ~200-500ms (fast enough for iterative workflows) |
 | **Cost** | Low (can run many verification checks) |
@@ -22,10 +22,10 @@ Use a fast, low-latency Vision Language Model (Gemini 2.0 Flash) as an autonomou
 |-------|---------|------|----------------|
 | GPT-4V | 2-5s | High | Excellent |
 | Claude Vision | 1-3s | Medium | Excellent |
-| Gemini 2.0 Flash | 200-500ms | Low | Good |
+| Gemini 3 Flash | 200-500ms | Low | Good |
 | Gemini 1.5 Pro | 1-2s | Medium | Excellent |
 
-**Gemini 2.0 Flash is ideal for high-frequency verification checks** where we need fast feedback, not deep analysis.
+**Gemini 3 Flash is ideal for high-frequency verification checks** where we need fast feedback, not deep analysis.
 
 ---
 
@@ -49,7 +49,7 @@ Use a fast, low-latency Vision Language Model (Gemini 2.0 Flash) as an autonomou
 │                             │                               │
 │                             ▼                               │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │           Gemini 2.0 Flash (Visual Judge)            │   │
+│  │           Gemini 3 Flash (Visual Judge)            │   │
 │  │                                                      │   │
 │  │  Input: Screenshot + Expected Description            │   │
 │  │  Output: { pass: bool, issues: [], suggestions: [] } │   │
@@ -233,7 +233,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-exp",
+  model: "gemini-3-flash",
   generationConfig: {
     responseMimeType: "application/json"
   }
@@ -574,7 +574,7 @@ steps:
 ## Roadmap
 
 ### Week 1: Basic Integration
-- [ ] Set up Gemini 2.0 Flash API client
+- [ ] Set up Gemini 3 Flash API client
 - [ ] Implement `vlm.verify` tool
 - [ ] Test with simple UI screenshots
 
