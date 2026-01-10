@@ -306,20 +306,15 @@ app.post('/chat/stream', async (req, res) => {
   };
 
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      sendEvent('error', { message: 'ANTHROPIC_API_KEY not set' });
-      res.end();
-      return;
-    }
-
-    const { message, sessionId } = req.body;
+    // Note: If ANTHROPIC_API_KEY not set, Claude Agent SDK uses Claude Code auth
+    const { message, sessionId, yoloMode = true } = req.body;
     if (!message) {
       sendEvent('error', { message: 'Message required' });
       res.end();
       return;
     }
 
-    console.log('[Bakable] Session:', sessionId || '(new session)');
+    console.log('[Bakable] Session:', sessionId || '(new session)', '| YOLO:', yoloMode);
 
     // Gather Studio context automatically
     sendEvent('status', { message: 'Getting context...' });
@@ -347,19 +342,27 @@ CONTEXT (auto-provided):
 - PATH: User-drawn path points
 - POINTER: User-marked position
 
-SCENE UNDERSTANDING (call when needed):
-When user references something by appearance or position ("the red building", "thing on the left"), use these tools:
-- studio.camera.scanViewport - Get models with positions (left/center/right) and paths
-- studio.captureViewport - Get screenshot to see colors/shapes
-Combine both to identify what user means, then operate on it.
-
 TOOLS:
-- studio.eval - Execute Luau code in Studio
-- studio.selection.get/set - Get or set selection
-- studio.instances.create/delete - Create or delete instances
+- studio.eval - Execute Luau code in Studio (create, delete, modify anything)
+- studio.instances.tree/getProps/setProps - Query tree, get/set properties
 - studio.camera.focusOn - Move camera to look at something
 
-Be direct. Execute code. Make changes.`;
+Context (selection, path, pointer) is AUTO-PROVIDED - don't call tools to get it.
+
+ROBLOX SCRIPT PLACEMENT:
+- Server Scripts → ServerScriptService (runs on server only)
+- ModuleScripts → ReplicatedStorage (shared) or ServerStorage (server-only)
+- GUI → StarterGui (ScreenGui) or in a Part (BillboardGui/SurfaceGui)
+
+When creating scripts, ALWAYS use className="Script" for ServerScriptService. Default to ServerScriptService for game logic.
+
+TESTING:
+- Use studio.playtest.run (Run mode F8) - NOT Play mode
+- Run mode is server-only, cleaner for testing
+- Do NOT use LocalScripts for testing - simulate client behavior with server scripts
+- Check logs with studio.logs.get after running
+
+Be direct. Execute code. Use Run mode to test.`;
 
     console.log('[Bakable] Stream request:', message.substring(0, 50) + '...');
     sendEvent('status', { message: 'Starting...' });
@@ -369,9 +372,10 @@ Be direct. Execute code. Make changes.`;
       systemPrompt,
       model: 'sonnet',
       cwd: REPO_PATH,
-      permissionMode: 'bypassPermissions',
-      allowDangerouslySkipPermissions: true,
-      mcpServers
+      permissionMode: yoloMode ? 'bypassPermissions' : 'default',
+      allowDangerouslySkipPermissions: yoloMode,
+      mcpServers,
+      settingSources: ['user', 'project'],  // Enable skills from .claude/skills/
     };
 
     // Resume existing session if sessionId provided
@@ -388,6 +392,12 @@ Be direct. Execute code. Make changes.`;
     let fullText = '';
     let capturedSessionId = sessionId;
 
+    // Send keepalive pings every 15 seconds to prevent connection timeout
+    const keepaliveInterval = setInterval(() => {
+      sendEvent('ping', {});
+    }, 15000);
+
+    try {
     for await (const event of response) {
       console.log('[Bakable] Event:', event.type);
 
@@ -426,25 +436,20 @@ Be direct. Execute code. Make changes.`;
               'WebSearch': 'Searching web',
               // MCP Roblox Studio tools
               'studio.eval': 'Running Lua code',
-              'studio.selection.get': 'Getting selection',
               'studio.selection.set': 'Selecting instances',
               'studio.instances.tree': 'Reading instance tree',
-              'studio.instances.create': 'Creating instance',
-              'studio.instances.delete': 'Deleting instance',
               'studio.instances.getProps': 'Reading properties',
               'studio.instances.setProps': 'Setting properties',
               'studio.scripts.list': 'Listing scripts',
               'studio.scripts.read': 'Reading script',
               'studio.scripts.write': 'Writing script',
               'studio.scripts.create': 'Creating script',
-              'studio.path.get': 'Getting path data',
               'studio.path.start': 'Recording path',
               'studio.path.stop': 'Stopping path',
               'studio.path.clear': 'Clearing path',
               'studio.path.addPoint': 'Adding path point',
               'studio.pointer.get': 'Getting pointer',
               'studio.pointer.capture': 'Capturing pointer',
-              'studio.pointer.getLast': 'Getting marked position',
               'studio.history.begin': 'Starting undo point',
               'studio.history.end': 'Saving undo point',
               'studio.history.undo': 'Undoing',
@@ -480,9 +485,8 @@ Be direct. Execute code. Make changes.`;
               'runtime.perf.getStats': 'Getting perf stats',
               // Playtest tools
               'studio.playtest.getStatus': 'Checking playtest status',
-              'studio.playtest.play': 'Starting Play mode',
+              'studio.playtest.run': 'Starting Run mode',
               'studio.playtest.stop': 'Stopping playtest',
-              'studio.playtest.sendInput': 'Sending keyboard input',
               // Recording tools
               'studio.recording.start': 'Starting recording',
               'studio.recording.stop': 'Stopping recording',
@@ -515,16 +519,33 @@ Be direct. Execute code. Make changes.`;
       }
 
       if (event.type === 'result') {
-        sendEvent('text', { content: event.result || '' });
+        // Don't send result text - it's already streamed via assistant events
+        // Just log for debugging
+        console.log('[Bakable] Result received, total text length:', fullText.length);
+        // Break out of loop - we're done
+        break;
       }
+    }
+    } finally {
+      clearInterval(keepaliveInterval);
     }
 
     sendEvent('done', { fullText });
     res.end();
 
   } catch (err) {
-    console.error('[Bakable] Stream error:', err);
-    sendEvent('error', { message: err.message });
+    // Ignore "process exited" errors if we already have content - SDK quirk
+    if (err.message?.includes('process exited') && fullText?.length > 0) {
+      console.log('[Bakable] Ignoring exit error after successful response');
+      sendEvent('done', { fullText });
+      res.end();
+      return;
+    }
+    // Log full error details
+    console.error('[Bakable] Stream error:', err.message);
+    console.error('[Bakable] Error stack:', err.stack);
+    console.error('[Bakable] Full text so far:', fullText?.length || 0, 'chars');
+    sendEvent('error', { message: err.message || 'Unknown error' });
     res.end();
   }
 });
@@ -532,13 +553,7 @@ Be direct. Execute code. Make changes.`;
 // Non-streaming fallback
 app.post('/chat', async (req, res) => {
   try {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return res.status(503).json({
-        error: 'ANTHROPIC_API_KEY not set. Add it to daemon/.env file.',
-        hint: 'Create daemon/.env with: ANTHROPIC_API_KEY=sk-ant-...'
-      });
-    }
-
+    // Note: If ANTHROPIC_API_KEY not set, Claude Agent SDK uses Claude Code auth
     const { message, history = [] } = req.body;
 
     if (!message) {
@@ -573,9 +588,16 @@ app.post('/chat', async (req, res) => {
 CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
 
 You have MCP tools available to interact with Roblox Studio:
-- studio.eval - Execute Luau code directly in Studio
-- studio.instances.create/delete - Create or delete instances
+- studio.eval - Execute Luau code directly in Studio (create, delete, modify)
 - studio.scripts.read/write - Read or write script content
+
+ROBLOX SCRIPT PLACEMENT:
+- Server Scripts → ServerScriptService (runs on server only)
+- Local Scripts → StarterPlayerScripts or StarterGui (runs on client)
+- ModuleScripts → ReplicatedStorage (shared) or ServerStorage (server-only)
+- GUI → StarterGui (ScreenGui) or in a Part (BillboardGui/SurfaceGui)
+
+When creating scripts, ALWAYS place them in the correct service. Default to ServerScriptService for game logic.
 
 When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
 Be proactive. Execute code. Make changes. You have full control.`;

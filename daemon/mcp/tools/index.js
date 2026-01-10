@@ -85,5 +85,19 @@ export async function registerAllTools() {
   registerDatastoreTools(registerTool, callPlugin);
   registerPlaceTools(registerTool, callPlugin);
 
+  // VLM Verification Tools (Gemini Flash)
+  const { registerVlmTools } = await import('./vlm.verify.js');
+  registerVlmTools(registerTool, callPlugin);
+
+  // Roblox API Tools (class/property docs via ReflectionService)
+  const { registerApiTools } = await import('./roblox.api.js');
+  registerApiTools(registerTool, callPlugin);
+  console.error('[MCP] Roblox API tools registered (3 tools)');
+
+  // Roblox Docs Tools (search creator documentation)
+  const { registerDocsTools } = await import('./roblox.docs.js');
+  registerDocsTools(registerTool);
+  console.error('[MCP] Roblox Docs tools registered (3 tools)');
+
   console.error('[MCP] All tools registered');
 }

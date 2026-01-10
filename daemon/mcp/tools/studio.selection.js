@@ -5,17 +5,7 @@
  */
 
 export function registerSelectionTools(registerTool, callPlugin) {
-  // studio.selection.get - Get currently selected instances
-  registerTool('studio.selection.get', {
-    description: 'Get currently selected instances in Roblox Studio',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: []
-    }
-  }, async (params) => {
-    return await callPlugin('studio.selection.get', params);
-  });
+  // NOTE: studio.selection.get removed - selection is auto-provided in context
 
   // studio.selection.set - Set selection to specific instances
   registerTool('studio.selection.set', {
@@ -59,17 +49,7 @@ export function registerSelectionTools(registerTool, callPlugin) {
     return await callPlugin('studio.pointer.capture', params);
   });
 
-  // studio.pointer.getLast - Get last captured pointer position
-  registerTool('studio.pointer.getLast', {
-    description: 'Get the last captured pointer position. Use this to recall where the user previously pointed.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: []
-    }
-  }, async (params) => {
-    return await callPlugin('studio.pointer.getLast', params);
-  });
+  // NOTE: studio.pointer.getLast removed - pointer is auto-provided in context
 
   // ============ Path Drawing Tools ============
 
@@ -97,17 +77,7 @@ export function registerSelectionTools(registerTool, callPlugin) {
     return await callPlugin('studio.path.stop', params);
   });
 
-  // studio.path.get - Get current path points
-  registerTool('studio.path.get', {
-    description: 'Get the currently recorded path points without stopping recording.',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: []
-    }
-  }, async (params) => {
-    return await callPlugin('studio.path.get', params);
-  });
+  // NOTE: studio.path.get removed - path is auto-provided in context
 
   // studio.path.clear - Clear path
   registerTool('studio.path.clear', {

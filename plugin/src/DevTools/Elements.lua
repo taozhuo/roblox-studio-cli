@@ -464,6 +464,19 @@ function Elements.getLastPointer(params: any): (boolean, any)
     end
 end
 
+-- ============ Path Drawing & Visual Markers ============
+
+-- Create or get the visuals folder (must be defined before showCapturedMarker)
+local function getVisualsFolder(): Folder
+    if visualsFolder and visualsFolder.Parent then
+        return visualsFolder
+    end
+    visualsFolder = Instance.new("Folder")
+    visualsFolder.Name = "DetAI_PathVisuals"
+    visualsFolder.Parent = Workspace
+    return visualsFolder
+end
+
 -- Visual marker for captured pointer
 local capturedMarker: Part? = nil
 
@@ -518,19 +531,6 @@ function Elements.capturePointer(params: any): (boolean, any)
     end
 
     return success, result
-end
-
--- ============ Path Drawing Tools ============
-
--- Create or get the visuals folder
-local function getVisualsFolder(): Folder
-    if visualsFolder and visualsFolder.Parent then
-        return visualsFolder
-    end
-    visualsFolder = Instance.new("Folder")
-    visualsFolder.Name = "DetAI_PathVisuals"
-    visualsFolder.Parent = Workspace
-    return visualsFolder
 end
 
 -- Create a visual marker at a position

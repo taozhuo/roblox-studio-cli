@@ -177,6 +177,101 @@ function ToolHandler.registerHandlers()
     handlers["cloud.place.getInfo"] = function() return false, "Cloud tools are handled by daemon" end
     handlers["cloud.universe.getInfo"] = function() return false, "Cloud tools are handled by daemon" end
 
+    -- VLM Verification status (update status bar from daemon)
+    handlers["vlm.verify.updateStatus"] = function(params)
+        local status = params.status or "none"
+        local message = params.message
+
+        -- Call the global function set by init.server.lua
+        if _G.BakableUpdateVerify then
+            _G.BakableUpdateVerify(status, message)
+        end
+
+        return true, { updated = true, status = status }
+    end
+
+    -- Roblox API Tools (ReflectionService)
+    local ReflectionService = game:GetService("ReflectionService")
+
+    handlers["roblox.api.getClass"] = function(params)
+        local className = params.className
+        if not className then
+            return false, "Missing className parameter"
+        end
+
+        local ok, classInfo = pcall(function()
+            return ReflectionService:GetClass(className)
+        end)
+
+        if not ok or not classInfo then
+            return false, string.format("Class not found: %s", className)
+        end
+
+        return true, {
+            name = classInfo.Name,
+            superclass = classInfo.Superclass,
+            subclasses = classInfo.Subclasses or {}
+        }
+    end
+
+    handlers["roblox.api.getProperties"] = function(params)
+        local className = params.className
+        if not className then
+            return false, "Missing className parameter"
+        end
+
+        local ok, props = pcall(function()
+            return ReflectionService:GetPropertiesOfClass(className)
+        end)
+
+        if not ok or not props then
+            return false, string.format("Class not found: %s", className)
+        end
+
+        -- Format properties for readability
+        local result = {}
+        for _, prop in ipairs(props) do
+            -- Skip internal/hidden properties
+            if prop.CanWrite or prop.CanRead then
+                table.insert(result, {
+                    name = prop.Name,
+                    type = prop.Type and prop.Type.Name or "unknown",
+                    canRead = prop.CanRead,
+                    canWrite = prop.CanWrite,
+                    category = prop.Category
+                })
+            end
+        end
+
+        return true, { className = className, properties = result }
+    end
+
+    handlers["roblox.api.searchClasses"] = function(params)
+        local query = params.query
+        if not query then
+            return false, "Missing query parameter"
+        end
+
+        local ok, allClasses = pcall(function()
+            return ReflectionService:GetClasses()
+        end)
+
+        if not ok or not allClasses then
+            return false, "Failed to get classes"
+        end
+
+        local matches = {}
+        local queryLower = string.lower(query)
+        for _, cls in ipairs(allClasses) do
+            if string.find(string.lower(cls.Name), queryLower, 1, true) then
+                table.insert(matches, cls.Name)
+                if #matches >= 20 then break end
+            end
+        end
+
+        return true, { classes = matches }
+    end
+
     print(string.format("[Bakable] Registered %d tool handlers", ToolHandler.countHandlers()))
 end
 

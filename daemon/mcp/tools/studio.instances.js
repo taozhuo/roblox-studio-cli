@@ -74,34 +74,6 @@ export function registerInstancesTools(registerTool, callPlugin) {
     return await callPlugin('studio.instances.setProps', params);
   });
 
-  // studio.instances.create - Create new instance
-  registerTool('studio.instances.create', {
-    description: 'Create a new instance',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        className: { type: 'string', description: 'Class name to create' },
-        parent: { type: 'string', description: 'Parent path' },
-        name: { type: 'string', description: 'Instance name' },
-        properties: { type: 'object', description: 'Initial properties' }
-      },
-      required: ['className', 'parent']
-    }
-  }, async (params) => {
-    return await callPlugin('studio.instances.create', params);
-  });
-
-  // studio.instances.delete - Delete instance
-  registerTool('studio.instances.delete', {
-    description: 'Delete an instance',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'Instance path to delete' }
-      },
-      required: ['path']
-    }
-  }, async (params) => {
-    return await callPlugin('studio.instances.delete', params);
-  });
+  // NOTE: studio.instances.create and studio.instances.delete removed
+  // Use studio.eval with Lua code instead - more flexible and efficient
 }

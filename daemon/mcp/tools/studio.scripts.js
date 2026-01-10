@@ -53,22 +53,32 @@ export function registerScriptsTools(registerTool, callPlugin) {
 
   // studio.scripts.create - Create new script
   registerTool('studio.scripts.create', {
-    description: 'Create a new script',
+    description: 'Create a new script. IMPORTANT: Use className="Script" for ServerScriptService (runs on server), "LocalScript" for client-side, "ModuleScript" only for shared libraries.',
     inputSchema: {
       type: 'object',
       properties: {
-        parent: { type: 'string', description: 'Parent path' },
+        parent: { type: 'string', description: 'Parent path (e.g., "ServerScriptService", "StarterPlayerScripts")' },
         name: { type: 'string', description: 'Script name' },
         className: {
           type: 'string',
           enum: ['Script', 'LocalScript', 'ModuleScript'],
-          description: 'Script type (default: ModuleScript)'
+          description: 'Script type - MUST specify: "Script" for server code, "LocalScript" for client code, "ModuleScript" for require() libraries'
         },
         content: { type: 'string', description: 'Initial content' }
       },
-      required: ['parent', 'name']
+      required: ['parent', 'name', 'className']
     }
   }, async (params) => {
+    // Default to Script for ServerScriptService, LocalScript for client containers
+    if (!params.className) {
+      if (params.parent?.includes('ServerScriptService') || params.parent?.includes('ServerStorage')) {
+        params.className = 'Script';
+      } else if (params.parent?.includes('StarterPlayer') || params.parent?.includes('StarterGui')) {
+        params.className = 'LocalScript';
+      } else {
+        params.className = 'ModuleScript';
+      }
+    }
     return await callPlugin('studio.scripts.create', params);
   });
 }

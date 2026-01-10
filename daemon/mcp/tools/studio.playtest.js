@@ -9,7 +9,8 @@ import { spawn } from 'child_process';
 
 // Key codes for macOS
 const KEY_CODES = {
-  F5: 96,
+  F5: 96,   // Play mode (client+server)
+  F8: 100,  // Run mode (server only)
   W: 13,
   A: 0,
   S: 1,
@@ -63,48 +64,23 @@ export function registerPlaytestTools(registerTool, callPlugin) {
     return await callPlugin('studio.playtest.getStatus', {});
   });
 
-  // Start Play mode (F5)
-  registerTool('studio.playtest.play', {
-    description: 'Start Play mode (F5) - full simulation with player character',
+  // Start Run mode (F8) - server only, no client
+  registerTool('studio.playtest.run', {
+    description: 'Start Run mode (F8) - server-only simulation. Use this to test server scripts. Do NOT use Play mode.',
     inputSchema: { type: 'object', properties: {} },
   }, async () => {
-    await sendKeystroke(KEY_CODES.F5);
-    return { started: true, mode: 'play' };
+    await sendKeystroke(KEY_CODES.F8);
+    return { started: true, mode: 'run' };
   });
 
   // Stop playtest (Shift+F5)
   registerTool('studio.playtest.stop', {
-    description: 'Stop playtest and return to edit mode',
+    description: 'Stop Run mode and return to edit mode',
     inputSchema: { type: 'object', properties: {} },
   }, async () => {
     await sendKeystroke(KEY_CODES.F5, ['shift down']);
     return { stopped: true };
   });
 
-  // Send keyboard input (WASD, Space)
-  registerTool('studio.playtest.sendInput', {
-    description: 'Send keyboard input for character control (WASD movement, Space jump). Works during Play mode.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        key: {
-          type: 'string',
-          enum: ['W', 'A', 'S', 'D', 'SPACE'],
-          description: 'W=forward, A=left, S=backward, D=right, SPACE=jump',
-        },
-        duration: {
-          type: 'number',
-          description: 'Hold duration in ms (default: 500)',
-        },
-      },
-      required: ['key'],
-    },
-  }, async ({ key, duration = 500 }) => {
-    const keyCode = KEY_CODES[key.toUpperCase()];
-    if (!keyCode) throw new Error(`Invalid key: ${key}`);
-    await sendKeystroke(keyCode, [], duration);
-    return { sent: true, key, duration };
-  });
-
-  console.error('[MCP] Playtest tools registered (4 tools)');
+  console.error('[MCP] Playtest tools registered (3 tools)');
 }

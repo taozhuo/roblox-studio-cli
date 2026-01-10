@@ -40,6 +40,16 @@ export default function App() {
   const lastSessionKey = useRef<string | null>(null);
   const [claudeSessionId, setClaudeSessionId] = useState<string | null>(null);
   const toolClearTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [yoloMode, setYoloMode] = useState(() => {
+    // Load from localStorage, default to true (YOLO)
+    const saved = localStorage.getItem('bakable-yolo-mode');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // Save yoloMode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('bakable-yolo-mode', String(yoloMode));
+  }, [yoloMode]);
 
   // Check daemon connection and session
   useEffect(() => {
@@ -101,13 +111,16 @@ export default function App() {
       const useStreaming = typeof ReadableStream !== 'undefined';
       const endpoint = useStreaming ? 'http://127.0.0.1:4849/chat/stream' : 'http://127.0.0.1:4849/chat';
 
+      // No timeout - AI can take a long time with tool calls
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: content,
-          sessionId: claudeSessionId // Resume session if we have one
-        })
+          sessionId: claudeSessionId, // Resume session if we have one
+          yoloMode // YOLO = bypass permissions, false = ask for each action
+        }),
+        keepalive: true
       });
 
       if (!response.ok) {
@@ -195,6 +208,10 @@ export default function App() {
                   setCurrentTool(null);
                 }
               } catch (e) {
+                // Re-throw actual errors (not parse errors)
+                if (e instanceof Error && !e.message.includes('JSON')) {
+                  throw e;
+                }
                 console.warn('[SSE] Parse error:', e, line);
               }
             }
@@ -210,6 +227,8 @@ export default function App() {
 
     } catch (error) {
       console.error('Chat error:', error);
+      console.error('Error type:', error?.constructor?.name);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'no stack');
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'system',
@@ -237,6 +256,8 @@ export default function App() {
         activeEditor={activeEditor}
         onSelectEditor={setActiveEditor}
         onClearChat={clearChat}
+        yoloMode={yoloMode}
+        onToggleYolo={() => setYoloMode(!yoloMode)}
       />
 
       <main className="main-content">

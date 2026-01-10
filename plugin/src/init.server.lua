@@ -1,146 +1,76 @@
 --!strict
 --[[
-    Bakable Studio Plugin
-    Thin API bridge - exposes Roblox Studio APIs to the daemon
-    UI is handled by the Bakable Desktop app (Tauri)
+    Bakable Studio Plugin - Minimal test version
 ]]
 
-local Store = require(script.State.Store)
-local DaemonClient = require(script.Sync.DaemonClient)
-local DevTools = require(script.DevTools)
-local Elements = require(script.DevTools.Elements)
-local Studio = require(script.DevTools.Studio)
+print("[Bakable] === PLUGIN STARTING ===")
 
--- Minimal status widget
-local statusWidget: DockWidgetPluginGui? = nil
-local statusLabel: TextLabel? = nil
+-- Test 1: Basic print
+print("[Bakable] Test 1: Basic print works")
 
--- Create minimal status indicator
-local function createStatusWidget()
+-- Test 2: Load Store
+local ok1, Store = pcall(function()
+    return require(script.State.Store)
+end)
+print("[Bakable] Test 2: Store loaded:", ok1)
+
+-- Test 3: Load DaemonClient
+local ok2, DaemonClient = pcall(function()
+    return require(script.Sync.DaemonClient)
+end)
+print("[Bakable] Test 3: DaemonClient loaded:", ok2)
+
+-- Test 4: Load Elements
+local ok3, Elements = pcall(function()
+    return require(script.DevTools.Elements)
+end)
+print("[Bakable] Test 4: Elements loaded:", ok3)
+
+-- Test 5: Load Studio
+local ok4, Studio = pcall(function()
+    return require(script.DevTools.Studio)
+end)
+print("[Bakable] Test 5: Studio loaded:", ok4)
+
+if not (ok1 and ok2 and ok3 and ok4) then
+    warn("[Bakable] Module load failed - check errors above")
+    return
+end
+
+print("[Bakable] All modules loaded OK")
+
+-- Test 6: Create widget
+local ok5, widgetErr = pcall(function()
     local widgetInfo = DockWidgetPluginGuiInfo.new(
         Enum.InitialDockState.Float,
-        false, -- disabled by default
+        true,
         false,
-        120, 32,
-        120, 32
+        180, 120,
+        180, 120
     )
+    local widget = plugin:CreateDockWidgetPluginGui("Bakable_Tools", widgetInfo)
+    widget.Title = "Bakable"
 
-    statusWidget = plugin:CreateDockWidgetPluginGui("Bakable_Status", widgetInfo)
-    statusWidget.Title = "Bakable"
-    statusWidget.Name = "Bakable_Status"
-
-    -- Simple status display
     local frame = Instance.new("Frame")
     frame.Size = UDim2.fromScale(1, 1)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    frame.BorderSizePixel = 0
-    frame.Parent = statusWidget
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    frame.Parent = widget
 
     local label = Instance.new("TextLabel")
     label.Size = UDim2.fromScale(1, 1)
     label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(160, 160, 170)
-    label.Font = Enum.Font.GothamMedium
-    label.TextSize = 12
-    label.Text = "Connecting..."
+    label.Text = "Bakable OK"
+    label.TextColor3 = Color3.new(1, 1, 1)
     label.Parent = frame
+end)
+print("[Bakable] Test 6: Widget created:", ok5)
+if not ok5 then warn("[Bakable] Widget error:", widgetErr) end
 
-    statusLabel = label
-
-    return statusWidget
-end
-
--- Update status display
-local function updateStatus(connected: boolean, message: string?)
-    if statusLabel then
-        if connected then
-            statusLabel.TextColor3 = Color3.fromRGB(74, 222, 128)
-            statusLabel.Text = message or "Connected"
-        else
-            statusLabel.TextColor3 = Color3.fromRGB(248, 113, 113)
-            statusLabel.Text = message or "Disconnected"
-        end
-    end
-end
-
--- Toolbar setup
-local toolbar = plugin:CreateToolbar("Bakable")
-
-local statusButton = toolbar:CreateButton(
-    "Status",
-    "Show Bakable connection status",
-    "rbxassetid://4458901886"
-)
-
-statusButton.Click:Connect(function()
-    if statusWidget then
-        statusWidget.Enabled = not statusWidget.Enabled
-    end
+-- Test 7: Connect to daemon
+task.spawn(function()
+    print("[Bakable] Test 7: Connecting to daemon...")
+    local connected = DaemonClient.connectFull()
+    print("[Bakable] Test 7: Daemon connected:", connected)
 end)
 
--- Initialize
-local function init()
-    print("[Bakable] Initializing plugin (thin bridge mode)...")
-
-    -- Pass plugin reference to DevTools modules
-    Elements.setPlugin(plugin)
-    Studio.setPlugin(plugin)
-
-    -- Create minimal status widget
-    createStatusWidget()
-
-    -- Load saved token
-    local savedToken = plugin:GetSetting("DaemonToken")
-    if savedToken and savedToken ~= "" then
-        Store.setDaemonConfig(Store.getState().daemonUrl, savedToken)
-        print("[Bakable] Loaded saved daemon token")
-    end
-
-    -- Auto-connect to daemon
-    task.spawn(function()
-        task.wait(1)
-
-        local connected = DaemonClient.connectFull()
-        if connected then
-            updateStatus(true, "Connected")
-            print("[Bakable] Connected to daemon")
-            -- Send session info to daemon
-            DevTools.sendSessionInfo()
-        else
-            updateStatus(false, "No daemon")
-            print("[Bakable] Daemon not available")
-        end
-
-        -- Periodic reconnection check
-        while true do
-            task.wait(10)
-            local state = Store.getState()
-            if state.connectionStatus == "connected" then
-                updateStatus(true, "Connected")
-            elseif state.connectionStatus == "connecting" then
-                updateStatus(false, "Connecting...")
-            else
-                updateStatus(false, "Disconnected")
-                -- Try to reconnect
-                DaemonClient.connectFull()
-            end
-        end
-    end)
-
-    print("[Bakable] Plugin ready (UI in Bakable Desktop app)")
-end
-
--- Cleanup
-plugin.Unloading:Connect(function()
-    print("[Bakable] Unloading plugin...")
-    DaemonClient.disconnectWebSocket()
-
-    if statusWidget then
-        statusWidget:Destroy()
-    end
-
-    Store.reset()
-end)
-
--- Start
-init()
+print("[Bakable] === PLUGIN READY ===")
