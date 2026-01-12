@@ -261,29 +261,37 @@ const mcpServers = {
 // Helper to gather Studio context (selection, path, pointer, viewport)
 async function gatherStudioContext() {
   const context = {};
+  const CONTEXT_TIMEOUT = 3000; // 3 second timeout for context calls
+
   try {
-    // Get selection
-    const selection = await callPluginTool('studio.selection.get', {});
+    // Get selection (quick timeout)
+    const selection = await callPluginTool('studio.selection.get', {}, CONTEXT_TIMEOUT);
     if (selection && !selection.error) {
       context.selection = selection;
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.log('[Bakable] Context: selection timeout/error');
+  }
 
   try {
-    // Get path data
-    const path = await callPluginTool('studio.path.get', {});
+    // Get path data (quick timeout)
+    const path = await callPluginTool('studio.path.get', {}, CONTEXT_TIMEOUT);
     if (path && !path.error && path.points?.length > 0) {
       context.path = path;
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.log('[Bakable] Context: path timeout/error');
+  }
 
   try {
-    // Get last pointer position
-    const pointer = await callPluginTool('studio.pointer.getLast', {});
+    // Get last pointer position (quick timeout)
+    const pointer = await callPluginTool('studio.pointer.getLast', {}, CONTEXT_TIMEOUT);
     if (pointer && !pointer.error && pointer.position) {
       context.pointer = pointer;
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.log('[Bakable] Context: pointer timeout/error');
+  }
 
   // Note: viewport scan is on-demand via studio.camera.scanViewport tool
   // AI calls it when needed, not auto-included (reduces latency)
@@ -676,19 +684,19 @@ let devToolsCallResolve = null;
 let devToolsCallTimeout = null;
 
 // Call plugin via WebSocket and wait for response
-async function callPluginTool(tool, params) {
+async function callPluginTool(tool, params, timeout = 30000) {
   return new Promise((resolve, reject) => {
     // Set up pending call
     const callId = crypto.randomUUID();
     pendingDevToolsCall = { callId, tool, params };
     devToolsCallResolve = resolve;
 
-    // Set timeout
+    // Set timeout (shorter for context gathering)
     devToolsCallTimeout = setTimeout(() => {
       pendingDevToolsCall = null;
       devToolsCallResolve = null;
       reject(new Error(`DevTools call timed out: ${tool}`));
-    }, 30000);
+    }, timeout);
 
     // Broadcast to plugin
     broadcast({

@@ -32,6 +32,7 @@ export type StoreState = {
     daemonToken: string,
     connectionStatus: SyncStatus,
     lastError: string?,
+    revision: number,
 
     -- Scripts
     scripts: {[string]: ScriptInfo},
@@ -53,6 +54,7 @@ local defaultState: StoreState = {
     daemonToken = "",
     connectionStatus = "disconnected",
     lastError = nil,
+    revision = 0,
 
     scripts = {},
 
@@ -106,6 +108,10 @@ function Store.setConnectionStatus(status: SyncStatus, error: string?)
         connectionStatus = status,
         lastError = error
     })
+end
+
+function Store.setRevision(revision: number)
+    Store.setState({ revision = revision })
 end
 
 function Store.setSelection(selection: {Instance})
