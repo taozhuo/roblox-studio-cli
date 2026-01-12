@@ -229,6 +229,14 @@ export default function App() {
       console.error('Chat error:', error);
       console.error('Error type:', error?.constructor?.name);
       console.error('Error stack:', error instanceof Error ? error.stack : 'no stack');
+
+      // If we already have content, just use it (ignore "Load failed" type errors)
+      if (fullText && fullText.length > 0) {
+        console.log('Stream ended with error but we have content, using it:', fullText.length, 'chars');
+        // Content already displayed via streaming updates, just return
+        return;
+      }
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'system',

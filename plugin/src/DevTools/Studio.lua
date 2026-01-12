@@ -22,6 +22,7 @@ print("[Studio] Core services loaded")
 local StudioService: any = nil
 local ScriptEditorService: any = nil
 local DebuggerManager: any = nil
+local StudioTestService: any = nil
 
 local ok, err
 
@@ -39,6 +40,11 @@ ok, err = pcall(function()
     DebuggerManager = game:GetService("DebuggerManager")
 end)
 if not ok then print("[Studio] DebuggerManager failed:", err) end
+
+ok, err = pcall(function()
+    StudioTestService = game:GetService("StudioTestService")
+end)
+if not ok then print("[Studio] StudioTestService failed:", err) end
 
 print("[Studio] Services initialized")
 
@@ -618,8 +624,6 @@ end
 
 -- ============ Playtest Tools ============
 
-local RunService = game:GetService("RunService")
-
 -- Get current playtest status
 function Studio.getPlaytestStatus(params: any): (boolean, any)
     return true, {
@@ -627,42 +631,86 @@ function Studio.getPlaytestStatus(params: any): (boolean, any)
         isEdit = RunService:IsEdit(),
         isRunMode = RunService:IsRunMode(),
         isStudio = RunService:IsStudio(),
+        hasStudioTestService = StudioTestService ~= nil
     }
 end
 
--- Start Run mode (server-only, no player character)
--- Note: This is NOT the same as F5 Play - use studio.playtest.play for full Play mode
+-- Start Run mode (server-only, no player character) using StudioTestService
 function Studio.runMode(params: any): (boolean, any)
     if RunService:IsRunning() then
         return false, "Already running - stop first"
     end
 
-    RunService:Run()
+    -- Use StudioTestService if available (preferred - proper API)
+    if StudioTestService then
+        -- ExecuteRunModeAsync yields until test ends, so spawn in separate thread
+        task.spawn(function()
+            local ok, err = pcall(function()
+                StudioTestService:ExecuteRunModeAsync(params or {})
+            end)
+            if not ok then
+                warn("[Studio] ExecuteRunModeAsync error:", err)
+            end
+        end)
 
-    -- Wait a moment for it to start
+        -- Give it a moment to start
+        task.wait(0.2)
+
+        return true, {
+            started = true,
+            mode = "run",
+            method = "StudioTestService",
+            isRunning = RunService:IsRunning()
+        }
+    end
+
+    -- Fallback to RunService:Run()
+    RunService:Run()
     task.wait(0.1)
 
     return true, {
         started = true,
         mode = "run",
-        isRunning = RunService:IsRunning(),
-        note = "Run mode started (server-only, no player). Use studio.playtest.play for full Play mode with player character."
+        method = "RunService",
+        isRunning = RunService:IsRunning()
     }
 end
 
--- Stop the current playtest
+-- Stop the current playtest using StudioTestService
 function Studio.stopPlaytest(params: any): (boolean, any)
-    if not RunService:IsRunning() then
-        return false, "Not currently running"
+    -- Check if we're in edit mode (not running anything)
+    if RunService:IsEdit() then
+        return false, "Already in edit mode - nothing to stop"
     end
 
-    RunService:Stop()
+    -- We're in some form of playtest (Run mode, Play mode, etc.)
 
-    -- Wait a moment for it to stop
+    -- Use StudioTestService.EndTest if available (preferred - proper API)
+    if StudioTestService then
+        local ok, err = pcall(function()
+            StudioTestService:EndTest(nil)
+        end)
+
+        if ok then
+            task.wait(0.2)
+            return true, {
+                stopped = true,
+                method = "StudioTestService",
+                isRunning = RunService:IsRunning(),
+                isEdit = RunService:IsEdit()
+            }
+        else
+            warn("[Studio] EndTest error:", err, "- falling back to RunService:Stop()")
+        end
+    end
+
+    -- Fallback to RunService:Stop()
+    RunService:Stop()
     task.wait(0.1)
 
     return true, {
         stopped = true,
+        method = "RunService",
         isRunning = RunService:IsRunning(),
         isEdit = RunService:IsEdit()
     }

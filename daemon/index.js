@@ -356,11 +356,18 @@ ROBLOX SCRIPT PLACEMENT:
 
 When creating scripts, ALWAYS use className="Script" for ServerScriptService. Default to ServerScriptService for game logic.
 
-TESTING:
-- Use studio.playtest.run (Run mode F8) - NOT Play mode
-- Run mode is server-only, cleaner for testing
-- Do NOT use LocalScripts for testing - simulate client behavior with server scripts
-- Check logs with studio.logs.get after running
+TESTING (PLAYTEST WORKFLOW):
+1. Create your script first (in ServerScriptService for server code)
+2. Start Run mode with studio.playtest.run
+3. Check status with studio.playtest.getStatus - look at isEdit/isRunMode
+4. Check logs with studio.logs.getHistory (NOT studio.logs.get)
+5. Stop with studio.playtest.stop when done
+
+IMPORTANT:
+- Run mode is server-only (F8) - cleaner for testing server scripts
+- After stopping, isEdit should be true
+- If stuck in run mode, call studio.playtest.stop again
+- Do NOT use LocalScripts for testing - use server scripts
 
 Be direct. Execute code. Use Run mode to test.`;
 
