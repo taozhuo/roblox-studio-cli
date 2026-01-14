@@ -9,6 +9,7 @@ interface ChatPanelProps {
   onSendMessage: (content: string) => void;
   onMenuClick: () => void;
   session?: Session | null;
+  currentTool?: string | null;
 }
 
 export default function ChatPanel({
@@ -16,7 +17,8 @@ export default function ChatPanel({
   isLoading,
   onSendMessage,
   onMenuClick,
-  session: _session
+  session: _session,
+  currentTool
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -150,11 +152,18 @@ export default function ChatPanel({
                     <path d="M16 3L28 9.5V22.5L16 29L4 22.5V9.5L16 3Z" fill="url(#logo-gradient)" />
                   </svg>
                 </div>
-                <div className="typing-dots">
-                  <span />
-                  <span />
-                  <span />
-                </div>
+                {currentTool ? (
+                  <div className="typing-status">
+                    <span className="status-spinner" />
+                    <span className="status-text">{currentTool}</span>
+                  </div>
+                ) : (
+                  <div className="typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                )}
               </div>
             )}
             <div ref={messagesEndRef} />

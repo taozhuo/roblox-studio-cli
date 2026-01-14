@@ -275,6 +275,7 @@ export default function App() {
           onSendMessage={sendMessage}
           onMenuClick={() => setSidebarOpen(true)}
           session={session}
+          currentTool={currentTool}
         />
       </main>
 
