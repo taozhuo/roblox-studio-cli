@@ -246,6 +246,27 @@
   to { transform: rotate(360deg); }
 }
 
+.stop-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  margin-left: 4px;
+  transition: all 0.15s ease;
+}
+
+.stop-btn:hover {
+  background: var(--error-bg, rgba(239, 68, 68, 0.1));
+  border-color: var(--error-border, rgba(239, 68, 68, 0.3));
+  color: var(--error-text, #ef4444);
+}
+
 /* ========== Input Container ========== */
 .input-container {
   padding: 8px 10px 10px;

@@ -7,6 +7,7 @@ interface ChatPanelProps {
   messages: Message[];
   isLoading: boolean;
   onSendMessage: (content: string) => void;
+  onCancel: () => void;
   onMenuClick: () => void;
   session?: Session | null;
   currentTool?: string | null;
@@ -16,6 +17,7 @@ export default function ChatPanel({
   messages,
   isLoading,
   onSendMessage,
+  onCancel,
   onMenuClick,
   session: _session,
   currentTool
@@ -38,7 +40,7 @@ export default function ChatPanel({
   }, [input]);
 
   const handleSend = () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
     onSendMessage(input.trim());
     setInput('');
   };
@@ -164,6 +166,11 @@ export default function ChatPanel({
                     <span />
                   </div>
                 )}
+                <button className="stop-btn" onClick={onCancel} title="Stop">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -183,7 +190,6 @@ export default function ChatPanel({
             onBlur={() => setIsFocused(false)}
             placeholder="Message Bakable..."
             rows={1}
-            disabled={isLoading}
           />
           <div className="input-actions">
             <button
@@ -205,9 +211,9 @@ export default function ChatPanel({
               )}
             </button>
             <button
-              className={`action-btn send-btn ${input.trim() && !isLoading ? 'active' : ''}`}
+              className={`action-btn send-btn ${input.trim() ? 'active' : ''}`}
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim()}
               aria-label="Send message"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

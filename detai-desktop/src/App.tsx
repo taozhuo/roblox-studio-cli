@@ -40,6 +40,7 @@ export default function App() {
   const lastSessionKey = useRef<string | null>(null);
   const [claudeSessionId, setClaudeSessionId] = useState<string | null>(null);
   const toolClearTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [yoloMode, setYoloMode] = useState(() => {
     // Load from localStorage, default to true (YOLO)
     const saved = localStorage.getItem('bakable-yolo-mode');
@@ -95,7 +96,21 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const cancelRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    setCurrentTool(null);
+  }, []);
+
   const sendMessage = useCallback(async (content: string) => {
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -106,6 +121,10 @@ export default function App() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setCurrentTool(null);
+
+    // Create new abort controller for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const useStreaming = typeof ReadableStream !== 'undefined';
@@ -120,7 +139,7 @@ export default function App() {
           sessionId: claudeSessionId, // Resume session if we have one
           yoloMode // YOLO = bypass permissions, false = ask for each action
         }),
-        keepalive: true
+        signal: abortController.signal
       });
 
       if (!response.ok) {
@@ -244,11 +263,19 @@ export default function App() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
+    } catch (error) {
+      // Handle abort errors gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+      throw error;
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
       setCurrentTool(null);
     }
-  }, [claudeSessionId]);
+  }, [claudeSessionId, yoloMode]);
 
   const clearChat = useCallback(() => {
     setMessages([]);
@@ -273,6 +300,7 @@ export default function App() {
           messages={messages}
           isLoading={isLoading}
           onSendMessage={sendMessage}
+          onCancel={cancelRequest}
           onMenuClick={() => setSidebarOpen(true)}
           session={session}
           currentTool={currentTool}
