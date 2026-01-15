@@ -5,7 +5,6 @@ interface StatusBarProps {
   daemonConnected: boolean;
   editorConnected: boolean;
   activeEditor: string;
-  currentTool?: string | null;
   session?: Session | null;
 }
 
@@ -13,7 +12,6 @@ export default function StatusBar({
   daemonConnected,
   editorConnected,
   activeEditor,
-  currentTool,
   session
 }: StatusBarProps) {
   return (
@@ -36,15 +34,6 @@ export default function StatusBar({
               {session.isPublished && (
                 <span className="session-id">#{session.placeId}</span>
               )}
-            </div>
-          </>
-        )}
-        {currentTool && (
-          <>
-            <div className="status-divider" />
-            <div className="status-indicator tool-active">
-              <span className="tool-spinner" />
-              <span className="status-text tool-text">{currentTool}</span>
             </div>
           </>
         )}

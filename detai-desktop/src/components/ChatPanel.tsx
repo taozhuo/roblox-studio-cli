@@ -11,6 +11,8 @@ interface ChatPanelProps {
   onMenuClick: () => void;
   session?: Session | null;
   currentTool?: string | null;
+  yoloMode: boolean;
+  onToggleYolo: () => void;
 }
 
 export default function ChatPanel({
@@ -20,13 +22,17 @@ export default function ChatPanel({
   onCancel,
   onMenuClick,
   session: _session,
-  currentTool
+  currentTool,
+  yoloMode,
+  onToggleYolo
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [showModeMenu, setShowModeMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,6 +44,19 @@ export default function ChatPanel({
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
     }
   }, [input]);
+
+  // Close mode menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setShowModeMenu(false);
+      }
+    };
+    if (showModeMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showModeMenu]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -148,29 +167,9 @@ export default function ChatPanel({
               />
             ))}
             {isLoading && (
-              <div className="typing-indicator">
-                <div className="typing-avatar">
-                  <svg width="16" height="16" viewBox="0 0 32 32" fill="none">
-                    <path d="M16 3L28 9.5V22.5L16 29L4 22.5V9.5L16 3Z" fill="url(#logo-gradient)" />
-                  </svg>
-                </div>
-                {currentTool ? (
-                  <div className="typing-status">
-                    <span className="status-spinner" />
-                    <span className="status-text">{currentTool}</span>
-                  </div>
-                ) : (
-                  <div className="typing-dots">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                )}
-                <button className="stop-btn" onClick={onCancel} title="Stop">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                </button>
+              <div className="status-indicator">
+                <span className="typing-spinner" />
+                <span className="typing-label">{currentTool || 'Thinking...'}</span>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -191,41 +190,120 @@ export default function ChatPanel({
             placeholder="Message Bakable..."
             rows={1}
           />
-          <div className="input-actions">
-            <button
-              className={`action-btn mic-btn ${isListening ? 'active' : ''}`}
-              onClick={toggleSpeech}
-              aria-label={isListening ? 'Stop listening' : 'Voice input'}
-            >
-              {isListening ? (
-                <div className="mic-waves">
-                  <span /><span /><span />
-                </div>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" y1="19" x2="12" y2="23" />
-                  <line x1="8" y1="23" x2="16" y2="23" />
+          <div className="input-bottom-row">
+            <div className="mode-selector" ref={modeMenuRef}>
+              <button
+                className="mode-trigger"
+                onClick={() => setShowModeMenu(!showModeMenu)}
+              >
+                {yoloMode ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <span>Auto-apply</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <span>Confirm changes</span>
+                  </>
+                )}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9" />
                 </svg>
+              </button>
+
+              {showModeMenu && (
+                <div className="mode-menu">
+                  <button
+                    className={`mode-option ${!yoloMode ? 'selected' : ''}`}
+                    onClick={() => { if (yoloMode) onToggleYolo(); setShowModeMenu(false); }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <div className="mode-info">
+                      <span className="mode-title">Confirm changes</span>
+                      <span className="mode-desc">Review and approve each change before it's applied</span>
+                    </div>
+                    {!yoloMode && (
+                      <svg className="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                  <button
+                    className={`mode-option ${yoloMode ? 'selected' : ''}`}
+                    onClick={() => { if (!yoloMode) onToggleYolo(); setShowModeMenu(false); }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    <div className="mode-info">
+                      <span className="mode-title">Auto-apply</span>
+                      <span className="mode-desc">Apply changes directly without confirmation prompts</span>
+                    </div>
+                    {yoloMode && (
+                      <svg className="check-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               )}
-            </button>
-            <button
-              className={`action-btn send-btn ${input.trim() ? 'active' : ''}`}
-              onClick={handleSend}
-              disabled={!input.trim()}
-              aria-label="Send message"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
+            </div>
+
+            <div className="input-actions">
+              <button
+                className={`action-btn mic-btn ${isListening ? 'active' : ''}`}
+                onClick={toggleSpeech}
+                aria-label={isListening ? 'Stop listening' : 'Voice input'}
+              >
+                {isListening ? (
+                  <div className="mic-waves">
+                    <span /><span /><span />
+                  </div>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                    <line x1="12" y1="19" x2="12" y2="23" />
+                    <line x1="8" y1="23" x2="16" y2="23" />
+                  </svg>
+                )}
+              </button>
+              {isLoading ? (
+                <button
+                  className="action-btn stop-btn"
+                  onClick={onCancel}
+                  aria-label="Stop"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  className={`action-btn send-btn ${input.trim() ? 'active' : ''}`}
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  aria-label="Send message"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
-        <p className="input-hint">
-          <kbd>Enter</kbd> to send · <kbd>Shift + Enter</kbd> for new line
-        </p>
       </div>
     </div>
   );

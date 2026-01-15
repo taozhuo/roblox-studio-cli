@@ -26,6 +26,7 @@ export interface Session {
   sessionKey: string;
 }
 
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -198,7 +199,6 @@ export default function App() {
                   ));
                 } else if (data.type === 'tool_start') {
                   console.log('[SSE] Tool started:', data.tool);
-                  // Cancel any pending clear timeout
                   if (toolClearTimeout.current) {
                     clearTimeout(toolClearTimeout.current);
                     toolClearTimeout.current = null;
@@ -206,11 +206,10 @@ export default function App() {
                   setCurrentTool(data.tool);
                 } else if (data.type === 'tool_end') {
                   console.log('[SSE] Tool ended');
-                  // Delay clearing so user can see the status
                   toolClearTimeout.current = setTimeout(() => {
                     setCurrentTool(null);
                     toolClearTimeout.current = null;
-                  }, 800);
+                  }, 500);
                 } else if (data.type === 'status') {
                   if (toolClearTimeout.current) {
                     clearTimeout(toolClearTimeout.current);
@@ -245,6 +244,12 @@ export default function App() {
       }
 
     } catch (error) {
+      // Handle abort errors gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+
       console.error('Chat error:', error);
       console.error('Error type:', error?.constructor?.name);
       console.error('Error stack:', error instanceof Error ? error.stack : 'no stack');
@@ -263,13 +268,6 @@ export default function App() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-    } catch (error) {
-      // Handle abort errors gracefully
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was cancelled');
-        return;
-      }
-      throw error;
     } finally {
       abortControllerRef.current = null;
       setIsLoading(false);
@@ -304,12 +302,13 @@ export default function App() {
           onMenuClick={() => setSidebarOpen(true)}
           session={session}
           currentTool={currentTool}
+          yoloMode={yoloMode}
+          onToggleYolo={() => setYoloMode(!yoloMode)}
         />
       </main>
 
       <StatusBar
         daemonConnected={daemonConnected}
-        currentTool={currentTool}
         editorConnected={editors.find(e => e.name === activeEditor)?.connected || false}
         activeEditor={activeEditor}
         session={session}

@@ -683,12 +683,10 @@ function Studio.stopPlaytest(params: any): (boolean, any)
         return false, "Already in edit mode - nothing to stop"
     end
 
-    -- We're in some form of playtest (Run mode, Play mode, etc.)
-
-    -- Use StudioTestService.EndTest if available (preferred - proper API)
+    -- Try StudioTestService first (proper API)
     if StudioTestService then
         local ok, err = pcall(function()
-            StudioTestService:EndTest(nil)
+            StudioTestService:EndTest(true)
         end)
 
         if ok then
@@ -699,8 +697,6 @@ function Studio.stopPlaytest(params: any): (boolean, any)
                 isRunning = RunService:IsRunning(),
                 isEdit = RunService:IsEdit()
             }
-        else
-            warn("[Studio] EndTest error:", err, "- falling back to RunService:Stop()")
         end
     end
 
