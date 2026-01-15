@@ -47,6 +47,12 @@ struct CaptureError {
     code: &'static str,
 }
 
+#[derive(Debug, Serialize)]
+struct CaptureBase64Response {
+    base64: String,
+    media_type: &'static str,
+}
+
 #[derive(Debug, Deserialize)]
 struct CaptureQuery {
     width: Option<u32>,
@@ -133,7 +139,9 @@ async fn permission_handler() -> Json<PermissionResponse> {
     }
 }
 
-async fn capture_handler(Query(_params): Query<CaptureQuery>) -> Response {
+async fn capture_handler(Query(params): Query<CaptureQuery>) -> Response {
+    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+
     if !capture::has_capture_permission() {
         return (
             StatusCode::FORBIDDEN,
@@ -148,6 +156,17 @@ async fn capture_handler(Query(_params): Query<CaptureQuery>) -> Response {
     match capture::capture_studio_viewport() {
         Some(png_data) => {
             info!("Screenshot captured: {} bytes", png_data.len());
+
+            // Return base64 JSON if format=base64 requested
+            if params.format.as_deref() == Some("base64") {
+                let base64_data = BASE64.encode(&png_data);
+                return Json(CaptureBase64Response {
+                    base64: base64_data,
+                    media_type: "image/png",
+                }).into_response();
+            }
+
+            // Default: return raw PNG
             (
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "image/png")],

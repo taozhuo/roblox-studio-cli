@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import ChatPanel from './components/ChatPanel';
+import ChatPanel, { ImageAttachment } from './components/ChatPanel';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import './App.css';
@@ -106,7 +106,7 @@ export default function App() {
     setCurrentTool(null);
   }, []);
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, images?: ImageAttachment[]) => {
     // Cancel any existing request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -115,7 +115,7 @@ export default function App() {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content,
+      content: images?.length ? `${content} [${images.length} image(s) attached]` : content,
       timestamp: new Date()
     };
 
@@ -137,6 +137,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: content,
+          images: images, // Base64 images for Claude vision
           sessionId: claudeSessionId, // Resume session if we have one
           yoloMode // YOLO = bypass permissions, false = ask for each action
         }),

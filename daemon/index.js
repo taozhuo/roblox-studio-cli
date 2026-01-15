@@ -315,14 +315,14 @@ app.post('/chat/stream', async (req, res) => {
 
   try {
     // Note: If ANTHROPIC_API_KEY not set, Claude Agent SDK uses Claude Code auth
-    const { message, sessionId, yoloMode = true } = req.body;
-    if (!message) {
+    const { message, images, sessionId, yoloMode = true } = req.body;
+    if (!message && (!images || images.length === 0)) {
       sendEvent('error', { message: 'Message required' });
       res.end();
       return;
     }
 
-    console.log('[Bakable] Session:', sessionId || '(new session)', '| YOLO:', yoloMode);
+    console.log('[Bakable] Session:', sessionId || '(new session)', '| YOLO:', yoloMode, '| Images:', images?.length || 0);
 
     // Gather Studio context automatically
     sendEvent('status', { message: 'Getting context...' });
@@ -341,7 +341,25 @@ app.post('/chat/stream', async (req, res) => {
       const p = studioContext.pointer.position;
       contextStr += `\n\nMARKED POSITION: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`;
     }
-    const prompt = message + contextStr;
+
+    // Build prompt - either string or content array with images
+    let prompt;
+    if (images && images.length > 0) {
+      // Multi-modal prompt with images
+      prompt = [
+        ...images.map(img => ({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.media_type,
+            data: img.data
+          }
+        })),
+        { type: 'text', text: (message || 'What do you see in this image?') + contextStr }
+      ];
+    } else {
+      prompt = message + contextStr;
+    }
 
     const systemPrompt = `You are Bakable, an AI assistant for Roblox Studio game development.
 

@@ -3,10 +3,17 @@ import type { Message, Session } from '../App';
 import MessageBubble from './MessageBubble';
 import './ChatPanel.css';
 
+export interface ImageAttachment {
+  type: 'base64';
+  media_type: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+  data: string;
+  name?: string;
+}
+
 interface ChatPanelProps {
   messages: Message[];
   isLoading: boolean;
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, images?: ImageAttachment[]) => void;
   onCancel: () => void;
   onMenuClick: () => void;
   session?: Session | null;
@@ -30,9 +37,13 @@ export default function ChatPanel({
   const [isListening, setIsListening] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [showModeMenu, setShowModeMenu] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeMenuRef = useRef<HTMLDivElement>(null);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,23 +56,27 @@ export default function ChatPanel({
     }
   }, [input]);
 
-  // Close mode menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
         setShowModeMenu(false);
       }
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false);
+      }
     };
-    if (showModeMenu) {
+    if (showModeMenu || showAttachMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showModeMenu]);
+  }, [showModeMenu, showAttachMenu]);
 
   const handleSend = () => {
-    if (!input.trim()) return;
-    onSendMessage(input.trim());
+    if (!input.trim() && pendingImages.length === 0) return;
+    onSendMessage(input.trim(), pendingImages.length > 0 ? pendingImages : undefined);
     setInput('');
+    setPendingImages([]);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -69,6 +84,55 @@ export default function ChatPanel({
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const takeScreenshot = async () => {
+    setShowAttachMenu(false);
+    try {
+      // Request screenshot with base64 data
+      const response = await fetch('http://127.0.0.1:4850/capture?format=base64');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.base64) {
+          setPendingImages(prev => [...prev, {
+            type: 'base64',
+            media_type: 'image/png',
+            data: data.base64,
+            name: 'screenshot.png'
+          }]);
+        }
+      }
+    } catch (error) {
+      console.error('Screenshot error:', error);
+    }
+  };
+
+  const addImage = () => {
+    setShowAttachMenu(false);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const mediaType = file.type as ImageAttachment['media_type'];
+      setPendingImages(prev => [...prev, {
+        type: 'base64',
+        media_type: mediaType || 'image/png',
+        data: base64,
+        name: file.name
+      }]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset for next selection
+  };
+
+  const removeImage = (index: number) => {
+    setPendingImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const toggleSpeech = async () => {
@@ -177,9 +241,18 @@ export default function ChatPanel({
         )}
       </div>
 
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
+
       {/* Input */}
       <div className="input-container">
-        <div className={`input-wrapper ${isFocused ? 'focused' : ''} ${input.trim() ? 'has-content' : ''}`}>
+        <div className={`input-wrapper ${isFocused ? 'focused' : ''} ${input.trim() || pendingImages.length > 0 ? 'has-content' : ''}`}>
           <textarea
             ref={textareaRef}
             value={input}
@@ -190,6 +263,24 @@ export default function ChatPanel({
             placeholder="Message Bakable..."
             rows={1}
           />
+
+          {/* Image previews */}
+          {pendingImages.length > 0 && (
+            <div className="image-previews">
+              {pendingImages.map((img, index) => (
+                <div key={index} className="image-preview">
+                  <img src={`data:${img.media_type};base64,${img.data}`} alt={img.name || 'attachment'} />
+                  <button className="remove-image" onClick={() => removeImage(index)}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="input-bottom-row">
             <div className="mode-selector" ref={modeMenuRef}>
               <button
@@ -279,6 +370,40 @@ export default function ChatPanel({
                   </svg>
                 )}
               </button>
+
+              <div className="attach-selector" ref={attachMenuRef}>
+                <button
+                  className="action-btn attach-trigger"
+                  onClick={() => setShowAttachMenu(!showAttachMenu)}
+                  aria-label="Add attachment"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+
+                {showAttachMenu && (
+                  <div className="attach-menu">
+                    <button className="attach-option" onClick={takeScreenshot}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
+                      <span>Take a screenshot</span>
+                    </button>
+                    <button className="attach-option" onClick={addImage}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                        <circle cx="8.5" cy="8.5" r="1.5" />
+                        <polyline points="21 15 16 10 5 21" />
+                      </svg>
+                      <span>Add an image</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {isLoading ? (
                 <button
                   className="action-btn stop-btn"
