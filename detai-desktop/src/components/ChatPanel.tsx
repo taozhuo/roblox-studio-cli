@@ -39,6 +39,7 @@ export default function ChatPanel({
   const [showModeMenu, setShowModeMenu] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeMenuRef = useRef<HTMLDivElement>(null);
@@ -133,6 +134,47 @@ export default function ChatPanel({
 
   const removeImage = (index: number) => {
     setPendingImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set false if we're leaving the container (not entering a child)
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+    imageFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        const mediaType = file.type as ImageAttachment['media_type'];
+        setPendingImages(prev => [...prev, {
+          type: 'base64',
+          media_type: mediaType || 'image/png',
+          data: base64,
+          name: file.name
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const toggleSpeech = async () => {
@@ -252,7 +294,12 @@ export default function ChatPanel({
 
       {/* Input */}
       <div className="input-container">
-        <div className={`input-wrapper ${isFocused ? 'focused' : ''} ${input.trim() || pendingImages.length > 0 ? 'has-content' : ''}`}>
+        <div
+          className={`input-wrapper ${isFocused ? 'focused' : ''} ${input.trim() || pendingImages.length > 0 ? 'has-content' : ''} ${isDragging ? 'dragging' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <textarea
             ref={textareaRef}
             value={input}

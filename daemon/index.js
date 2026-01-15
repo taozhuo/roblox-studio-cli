@@ -313,6 +313,8 @@ app.post('/chat/stream', async (req, res) => {
     res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
   };
 
+  let fullText = '';
+
   try {
     // Note: If ANTHROPIC_API_KEY not set, Claude Agent SDK uses Claude Code auth
     const { message, images, sessionId, yoloMode = true } = req.body;
@@ -342,11 +344,16 @@ app.post('/chat/stream', async (req, res) => {
       contextStr += `\n\nMARKED POSITION: (${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)})`;
     }
 
-    // Build prompt - either string or content array with images
+    // Build prompt - use async generator for images (streaming input mode)
     let prompt;
     if (images && images.length > 0) {
-      // Multi-modal prompt with images
-      prompt = [
+      console.log('[Bakable] Images received:', images.length, 'images');
+      console.log('[Bakable] First image media_type:', images[0].media_type);
+      console.log('[Bakable] First image data length:', images[0].data?.length || 0);
+
+      // Build content array with text FIRST, then images (required order for SDK)
+      const contentBlocks = [
+        { type: 'text', text: (message || 'What do you see in this image?') + contextStr },
         ...images.map(img => ({
           type: 'image',
           source: {
@@ -354,9 +361,22 @@ app.post('/chat/stream', async (req, res) => {
             media_type: img.media_type,
             data: img.data
           }
-        })),
-        { type: 'text', text: (message || 'What do you see in this image?') + contextStr }
+        }))
       ];
+
+      // Use async generator for streaming input mode (required for images)
+      async function* messageGenerator() {
+        yield {
+          type: 'user',
+          message: {
+            role: 'user',
+            content: contentBlocks
+          }
+        };
+      }
+
+      prompt = messageGenerator();
+      console.log('[Bakable] Using streaming input mode for images');
     } else {
       prompt = message + contextStr;
     }
@@ -397,7 +417,7 @@ IMPORTANT:
 
 Be direct. Execute code. Use Run mode to test.`;
 
-    console.log('[Bakable] Stream request:', message.substring(0, 50) + '...');
+    console.log('[Bakable] Stream request:', (message || '(image only)').substring(0, 50) + '...');
     sendEvent('status', { message: 'Starting...' });
 
     // Build SDK options - use resume for session continuity
@@ -422,7 +442,6 @@ Be direct. Execute code. Use Run mode to test.`;
       options: sdkOptions
     });
 
-    let fullText = '';
     let capturedSessionId = sessionId;
 
     // Send keepalive pings every 15 seconds to prevent connection timeout
