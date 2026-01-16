@@ -243,11 +243,92 @@ game
     └── Coins/             -- Folder for runtime coins
 ```
 
+## Lua Code Quality (from Official Docs & DevForum)
+
+### Naming Conventions
+```lua
+-- Variables/functions: camelCase
+local playerScore = 0
+local function calculateDamage() end
+
+-- Constants: UPPER_SNAKE_CASE
+local MAX_HEALTH = 100
+
+-- Services: use GetService (not game.Players)
+local Players = game:GetService("Players")  -- GOOD
+local Players = game.Players                 -- BAD
+```
+
+### Instance.new Order (Performance)
+Set properties BEFORE parenting:
+```lua
+local part = Instance.new("Part")
+part.Name = "Wall"
+part.Size = Vector3.new(10, 10, 1)
+part.Anchored = true
+part.Parent = workspace  -- Parent LAST
+```
+
+### Clone vs Instance.new
+Prefer cloning templates for repeated objects:
+```lua
+-- At runtime, clone is faster than Instance.new
+local coin = template:Clone()
+coin.Position = position
+coin.Parent = workspace.Coins
+```
+
+### Use task Library (not deprecated)
+```lua
+task.wait(1)      -- NOT wait(1)
+task.spawn(fn)    -- NOT spawn(fn)
+task.delay(1, fn) -- NOT delay(1, fn)
+```
+
+### Guard Clauses (Early Returns)
+```lua
+-- BAD: nested ifs
+if player then
+    if coin then
+        coin:Destroy()
+    end
+end
+
+-- GOOD: guard clauses
+if not player then return end
+if not coin then return end
+coin:Destroy()
+```
+
+### Event Cleanup
+```lua
+-- Disconnect when done
+local connection
+connection = part.Touched:Connect(function(hit)
+    connection:Disconnect()
+end)
+
+-- Or use :Once() for single-fire
+part.Touched:Once(function(hit)
+    print("First touch only")
+end)
+```
+
 ## Key Rules
 
 1. **Use eval for creating assets** - Models, parts, UI, events
 2. **Use Scripts for runtime logic** - Game mechanics, interactions
 3. **ModuleScripts for reusable code** - Never put logic in entry Scripts
-4. **Test with Run mode (F8)** - Server-only, faster iteration
-5. **Keep TestRunner disabled** - Only enable during testing
-6. **Check logs after playtest** - Use studio.logs.getHistory
+4. **Properties before Parent** - Set all properties, then parent
+5. **Clone over Instance.new** - For repeated objects at runtime
+6. **GetService()** - Always use game:GetService()
+7. **task library** - Not deprecated wait/spawn/delay
+8. **Guard clauses** - Early returns, not nested ifs
+9. **Test with Run mode (F8)** - Server-only, faster iteration
+10. **Check logs after playtest** - Use studio.logs.getHistory
+
+## Sources
+
+- [Roblox Scripts Documentation](https://create.roblox.com/docs/scripting/scripts)
+- [Single Script Architecture - DevForum](https://devforum.roblox.com/t/single-script-architecture-and-modular-programming/2432662)
+- [Best Practices Handbook - DevForum](https://devforum.roblox.com/t/best-practices-handbook/2593598)
