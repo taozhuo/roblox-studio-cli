@@ -1,139 +1,227 @@
-# Roblox Scripting Best Practices
+# Roblox Development Best Practices
 
-## Script Architecture
+## Two Modes of Development
 
-Always use a modular architecture:
+### 1. Edit Time (studio.eval) - Creating Assets
 
-1. **ModuleScripts** - Contains all logic (in ReplicatedStorage or ServerStorage)
-2. **Server Script** - Entry point that requires and calls modules (in ServerScriptService)
-3. **Test Script** - Separate script to test in Run mode (in ServerScriptService)
+Use `studio.eval` to create models, parts, UI directly. Objects persist in the place file.
 
-## Creating Scripts
-
-### Step 1: Create ModuleScript with Logic
-
-Place in `ReplicatedStorage` (if shared) or `ServerStorage` (server-only):
+**When to use:** Creating/modifying instances, building structures, setting up UI
 
 ```lua
--- ModuleScript: ReplicatedStorage/Modules/HouseBuilder
-local HouseBuilder = {}
+-- Create a house directly via eval - no scripts needed
+local house = Instance.new("Model")
+house.Name = "House"
 
-function HouseBuilder.createWall(parent, position, size)
-    local wall = Instance.new("Part")
-    wall.Name = "Wall"
-    wall.Anchored = true
-    wall.Position = position
-    wall.Size = size
-    wall.Parent = parent
-    return wall
-end
+local floor = Instance.new("Part")
+floor.Name = "Floor"
+floor.Size = Vector3.new(20, 1, 20)
+floor.Position = Vector3.new(0, 0, 0)
+floor.Anchored = true
+floor.Parent = house
 
-function HouseBuilder.createHouse(position)
-    local house = Instance.new("Model")
-    house.Name = "House"
+local wall = Instance.new("Part")
+wall.Name = "Wall"
+wall.Size = Vector3.new(20, 10, 1)
+wall.Position = Vector3.new(0, 5, -10)
+wall.Anchored = true
+wall.Parent = house
 
-    -- Create walls
-    HouseBuilder.createWall(house, position + Vector3.new(0, 5, -10), Vector3.new(20, 10, 1))
-    HouseBuilder.createWall(house, position + Vector3.new(0, 5, 10), Vector3.new(20, 10, 1))
-    HouseBuilder.createWall(house, position + Vector3.new(-10, 5, 0), Vector3.new(1, 10, 20))
-    HouseBuilder.createWall(house, position + Vector3.new(10, 5, 0), Vector3.new(1, 10, 20))
-
-    house.Parent = workspace
-    return house
-end
-
-return HouseBuilder
+house.Parent = workspace
 ```
 
-### Step 2: Create Entry Point Script
+**Benefits:**
+- Objects save with the place
+- No runtime overhead
+- Immediate visual feedback
+- Can undo/redo in Studio
 
-Place in `ServerScriptService`:
+### 2. Runtime (Scripts) - Game Logic
+
+Use Scripts for logic that runs when the game plays.
+
+**When to use:** Player interactions, game mechanics, data persistence, multiplayer logic
+
+## Script Architecture for Runtime
+
+Use modular architecture:
+
+1. **ModuleScripts** - Contains all logic (in ReplicatedStorage or ServerStorage)
+2. **Server Script** - Entry point that requires modules (in ServerScriptService)
+3. **Test Script** - For testing in Run mode (in ServerScriptService)
+
+### ModuleScript Example
+
+```lua
+-- ModuleScript: ReplicatedStorage/Modules/CoinSystem
+local CoinSystem = {}
+
+local coins = {}
+
+function CoinSystem.spawnCoin(position)
+    local coin = Instance.new("Part")
+    coin.Name = "Coin"
+    coin.Shape = Enum.PartType.Cylinder
+    coin.Size = Vector3.new(0.2, 2, 2)
+    coin.Position = position
+    coin.Anchored = true
+    coin.BrickColor = BrickColor.new("Gold")
+    coin.Parent = workspace.Coins
+    table.insert(coins, coin)
+    return coin
+end
+
+function CoinSystem.collectCoin(coin, player)
+    local index = table.find(coins, coin)
+    if index then
+        table.remove(coins, index)
+        coin:Destroy()
+        return true
+    end
+    return false
+end
+
+return CoinSystem
+```
+
+### Entry Point Script
 
 ```lua
 -- Script: ServerScriptService/Main
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HouseBuilder = require(ReplicatedStorage.Modules.HouseBuilder)
+local CoinSystem = require(ReplicatedStorage.Modules.CoinSystem)
 
--- Initialize game systems
-print("[Main] Starting game...")
+-- Setup
+local coinsFolder = Instance.new("Folder")
+coinsFolder.Name = "Coins"
+coinsFolder.Parent = workspace
 
--- Example: Create a house when game starts
-local house = HouseBuilder.createHouse(Vector3.new(0, 0, 0))
-print("[Main] House created:", house.Name)
+-- Spawn initial coins
+for i = 1, 10 do
+    CoinSystem.spawnCoin(Vector3.new(math.random(-50, 50), 5, math.random(-50, 50)))
+end
+
+print("[Main] Game initialized with 10 coins")
 ```
 
-### Step 3: Create Test Script
-
-Place in `ServerScriptService`, disabled by default:
+### Test Script
 
 ```lua
 -- Script: ServerScriptService/TestRunner (Disabled = true)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HouseBuilder = require(ReplicatedStorage.Modules.HouseBuilder)
+local CoinSystem = require(ReplicatedStorage.Modules.CoinSystem)
 
-print("=== Running Tests ===")
+print("=== Running CoinSystem Tests ===")
 
--- Test 1: Create wall
-local testWall = HouseBuilder.createWall(workspace, Vector3.new(0, 5, 0), Vector3.new(10, 10, 1))
-assert(testWall:IsA("Part"), "Wall should be a Part")
-assert(testWall.Anchored == true, "Wall should be anchored")
-print("PASS: createWall")
-testWall:Destroy()
+-- Setup test folder
+local testFolder = Instance.new("Folder")
+testFolder.Name = "Coins"
+testFolder.Parent = workspace
 
--- Test 2: Create house
-local testHouse = HouseBuilder.createHouse(Vector3.new(50, 0, 0))
-assert(testHouse:IsA("Model"), "House should be a Model")
-assert(#testHouse:GetChildren() >= 4, "House should have at least 4 walls")
-print("PASS: createHouse")
-testHouse:Destroy()
+-- Test: spawnCoin
+local coin = CoinSystem.spawnCoin(Vector3.new(0, 5, 0))
+assert(coin ~= nil, "Coin should be created")
+assert(coin.Parent == testFolder, "Coin should be in Coins folder")
+print("PASS: spawnCoin")
+
+-- Test: collectCoin
+local collected = CoinSystem.collectCoin(coin, nil)
+assert(collected == true, "Should return true on collect")
+assert(coin.Parent == nil, "Coin should be destroyed")
+print("PASS: collectCoin")
+
+-- Cleanup
+testFolder:Destroy()
 
 print("=== All Tests Passed ===")
 ```
 
 ## Testing Workflow
 
-1. **Create the ModuleScript** with your logic
-2. **Create a TestRunner script** in ServerScriptService (keep it Disabled)
-3. **Enable TestRunner** temporarily: `studio.eval` to set `Disabled = false`
+1. **Create ModuleScript** with logic
+2. **Create TestRunner** script (Disabled = true)
+3. **Enable TestRunner**:
+   ```lua
+   game.ServerScriptService.TestRunner.Disabled = false
+   ```
 4. **Run playtest** in Run mode (F8): `studio.playtest.run`
 5. **Check logs**: `studio.logs.getHistory`
 6. **Stop playtest**: `studio.playtest.stop`
-7. **Disable TestRunner** again after testing
+7. **Disable TestRunner**:
+   ```lua
+   game.ServerScriptService.TestRunner.Disabled = true
+   ```
 
-## Tool Usage Pattern
+## When to Use What
 
-When asked to create a feature:
+| Task | Method | Why |
+|------|--------|-----|
+| Create a building | `studio.eval` | Edit-time, saves with place |
+| Create UI layout | `studio.eval` | Edit-time, visual setup |
+| Set part properties | `studio.eval` | Edit-time, immediate |
+| Player movement | Script | Runtime logic |
+| Coin collection | Script | Runtime interaction |
+| Save player data | Script | Runtime persistence |
+| Spawn enemies | Script | Runtime game loop |
+| Setup RemoteEvents | `studio.eval` | Edit-time structure, runtime use |
 
+## Hybrid Example: Setup + Logic
+
+**Step 1: Create structure at edit time (studio.eval)**
+```lua
+-- Create the coin template
+local coinTemplate = Instance.new("Part")
+coinTemplate.Name = "CoinTemplate"
+coinTemplate.Shape = Enum.PartType.Cylinder
+coinTemplate.Size = Vector3.new(0.2, 2, 2)
+coinTemplate.Anchored = true
+coinTemplate.CanCollide = false
+coinTemplate.BrickColor = BrickColor.new("Gold")
+coinTemplate.Parent = game.ReplicatedStorage
+
+-- Create coins folder
+local coinsFolder = Instance.new("Folder")
+coinsFolder.Name = "Coins"
+coinsFolder.Parent = workspace
+
+-- Create RemoteEvent for collection
+local collectEvent = Instance.new("RemoteEvent")
+collectEvent.Name = "CollectCoin"
+collectEvent.Parent = game.ReplicatedStorage
 ```
-1. studio.scripts.create - Create ModuleScript in ReplicatedStorage/Modules/
-2. studio.scripts.create - Create entry Script in ServerScriptService/
-3. studio.scripts.create - Create TestRunner in ServerScriptService/ (Disabled)
-4. studio.eval - Enable TestRunner: game.ServerScriptService.TestRunner.Disabled = false
-5. studio.playtest.run - Start Run mode
-6. studio.logs.getHistory - Check test output
-7. studio.playtest.stop - Stop playtest
-8. studio.eval - Disable TestRunner: game.ServerScriptService.TestRunner.Disabled = true
+
+**Step 2: Create runtime logic (Scripts)**
+```lua
+-- ModuleScript uses the template created at edit time
+local CoinSystem = {}
+local template = game.ReplicatedStorage.CoinTemplate
+
+function CoinSystem.spawnCoin(position)
+    local coin = template:Clone()
+    coin.Position = position
+    coin.Parent = workspace.Coins
+    return coin
+end
+
+return CoinSystem
 ```
 
 ## Communication Between Scripts
 
-Use **BindableEvents** for server-to-server script communication:
+Use **BindableEvents** for server script communication:
 
 ```lua
--- ModuleScript: Create event
-local Events = {}
-Events.OnHouseBuilt = Instance.new("BindableEvent")
+-- Create at edit time via eval
+local event = Instance.new("BindableEvent")
+event.Name = "OnCoinCollected"
+event.Parent = game.ReplicatedStorage
 
-function Events.fireHouseBuilt(house)
-    Events.OnHouseBuilt:Fire(house)
-end
+-- Script A fires
+game.ReplicatedStorage.OnCoinCollected:Fire(coinData)
 
-return Events
-
--- Another script: Listen
-local Events = require(ReplicatedStorage.Modules.Events)
-Events.OnHouseBuilt.Event:Connect(function(house)
-    print("House was built:", house.Name)
+-- Script B listens
+game.ReplicatedStorage.OnCoinCollected.Event:Connect(function(data)
+    print("Coin collected:", data)
 end)
 ```
 
@@ -142,25 +230,24 @@ end)
 ```
 game
 ├── ReplicatedStorage
-│   └── Modules
-│       ├── HouseBuilder (ModuleScript)
-│       ├── Events (ModuleScript)
-│       └── Utils (ModuleScript)
+│   ├── Modules/           -- ModuleScripts (shared)
+│   ├── CoinTemplate       -- Created via eval
+│   ├── CollectCoin        -- RemoteEvent (via eval)
+│   └── OnCoinCollected    -- BindableEvent (via eval)
 ├── ServerStorage
-│   └── ServerModules
-│       └── DataManager (ModuleScript)
+│   └── ServerModules/     -- Server-only ModuleScripts
 ├── ServerScriptService
-│   ├── Main (Script) - Entry point
-│   └── TestRunner (Script, Disabled) - Tests
-└── StarterGui
-    └── UI (ScreenGui)
+│   ├── Main               -- Entry point Script
+│   └── TestRunner         -- Test Script (Disabled)
+└── workspace
+    └── Coins/             -- Folder for runtime coins
 ```
 
 ## Key Rules
 
-1. **Never put logic directly in Scripts** - Always use ModuleScripts
-2. **Scripts are entry points only** - Just require modules and call functions
-3. **Test with Run mode (F8)** - Server-only, no client needed
-4. **Use BindableEvents** for script-to-script communication
+1. **Use eval for creating assets** - Models, parts, UI, events
+2. **Use Scripts for runtime logic** - Game mechanics, interactions
+3. **ModuleScripts for reusable code** - Never put logic in entry Scripts
+4. **Test with Run mode (F8)** - Server-only, faster iteration
 5. **Keep TestRunner disabled** - Only enable during testing
 6. **Check logs after playtest** - Use studio.logs.getHistory
