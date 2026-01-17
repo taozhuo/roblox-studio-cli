@@ -1143,7 +1143,7 @@ IMPORTANT:
       prompt: fullPromptWithSystem,
       options: {
         cwd: workDir,
-        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Task', 'TodoWrite'],
+        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Task', 'TodoWrite', 'WebSearch', 'WebFetch', 'AskUserQuestion', 'NotebookEdit', 'LSP'],
         permissionMode: 'acceptEdits',
         model: 'claude-opus-4-5-20251101'
       }
