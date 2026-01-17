@@ -210,14 +210,14 @@ export function registerStudioTools(registerTool, callPlugin) {
       properties: {
         outputPath: {
           type: 'string',
-          description: 'Optional output path for the screenshot. Defaults to detai-repo/viewport.png'
+          description: 'Optional output path for the screenshot. Defaults to bakable-repo/viewport.png'
         }
       },
       required: []
     }
   }, async (params) => {
     try {
-      const outputPath = params.outputPath || path.join(process.cwd(), 'detai-repo', 'viewport.png');
+      const outputPath = params.outputPath || path.join(process.cwd(), 'bakable-repo', 'viewport.png');
 
       // Ensure directory exists
       const dir = path.dirname(outputPath);

@@ -104,7 +104,7 @@ end
 export type PushSnapshotPayload = {
     projectId: string?,
     scripts: {{
-        detaiId: string,
+        bakableId: string,
         robloxPath: string,
         className: string,
         filePath: string?,
@@ -132,7 +132,7 @@ end
 export type PullChangesResult = {
     revision: number,
     changes: {{
-        detaiId: string,
+        bakableId: string,
         filePath: string,
         hash: string,
         text: string

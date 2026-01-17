@@ -26,11 +26,11 @@ import os from 'os';
 import { registerTool, callTool, getToolSchemas } from './mcp/server.js';
 import { setPluginCaller, registerAllTools } from './mcp/tools/index.js';
 
-const PORT = process.env.DETAI_PORT || 4849;
-const REPO_PATH = process.env.DETAI_REPO || './detai-repo';
+const PORT = process.env.BAKABLE_PORT || 4849;
+const REPO_PATH = process.env.BAKABLE_REPO || './bakable-repo';
 
 // Generate auth token on startup
-const AUTH_TOKEN = process.env.DETAI_TOKEN || crypto.randomUUID();
+const AUTH_TOKEN = process.env.BAKABLE_TOKEN || crypto.randomUUID();
 
 // State
 let manifest = {
@@ -77,7 +77,7 @@ async function ensureDir(dirPath) {
 }
 
 async function loadManifest() {
-  const manifestPath = path.join(REPO_PATH, 'detai.manifest.json');
+  const manifestPath = path.join(REPO_PATH, 'bakable.manifest.json');
   try {
     const data = await fs.readFile(manifestPath, 'utf-8');
     manifest = JSON.parse(data);
@@ -88,7 +88,7 @@ async function loadManifest() {
 }
 
 async function saveManifest() {
-  const manifestPath = path.join(REPO_PATH, 'detai.manifest.json');
+  const manifestPath = path.join(REPO_PATH, 'bakable.manifest.json');
   await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 }
 
@@ -253,7 +253,7 @@ const mcpServers = {
     command: 'node',
     args: [path.join(path.dirname(new URL(import.meta.url).pathname), 'mcp-stdio.js')],
     env: {
-      DETAI_PORT: String(PORT)
+      BAKABLE_PORT: String(PORT)
     }
   }
 };
@@ -807,7 +807,7 @@ app.post('/sync/pushSnapshot', async (req, res) => {
       await fs.writeFile(filePath, script.text || '');
 
       manifest.scripts.push({
-        detaiId: script.detaiId,
+        bakableId: script.bakableId,
         robloxPath: script.robloxPath,
         className: script.className,
         filePath: script.filePath,
@@ -842,7 +842,7 @@ app.post('/sync/pullChanges', async (req, res) => {
     res.json({
       revision: manifest.revision,
       changes: changes.map(c => ({
-        detaiId: c.detaiId,
+        bakableId: c.bakableId,
         filePath: c.filePath,
         hash: c.hash,
         text: c.text
@@ -1245,7 +1245,7 @@ async function handleFileChange(absolutePath) {
     await saveManifest();
 
     const change = {
-      detaiId: scriptInfo.detaiId,
+      bakableId: scriptInfo.bakableId,
       filePath: relativePath,
       hash: newHash,
       text: text,

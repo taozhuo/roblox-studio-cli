@@ -9,7 +9,7 @@ local HttpService = game:GetService("HttpService")
 export type SyncStatus = "disconnected" | "connecting" | "connected" | "error"
 
 export type ScriptInfo = {
-    detaiId: string,
+    bakableId: string,
     robloxPath: string,
     className: string,
     filePath: string?,
@@ -120,7 +120,7 @@ end
 
 function Store.addScript(info: ScriptInfo)
     local scripts = table.clone(state.scripts)
-    scripts[info.detaiId] = info
+    scripts[info.bakableId] = info
     Store.setState({ scripts = scripts })
 end
 

@@ -1,0 +1,3 @@
+EXECUTION ERROR at 2025-12-31T18:20:10.395Z
+
+Error: loadstring() is not available
