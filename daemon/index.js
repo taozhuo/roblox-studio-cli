@@ -381,49 +381,13 @@ app.post('/chat/stream', async (req, res) => {
       prompt = message + contextStr;
     }
 
-    const systemPrompt = `You are Bakable, an AI assistant for Roblox Studio game development.
-
-CONTEXT (auto-provided):
-- SELECTION: Currently selected instances
-- PATH: User-drawn path points
-- POINTER: User-marked position
-
-TOOLS:
-- studio.eval - Execute Luau code in Studio (create, delete, modify anything)
-- studio.instances.tree/getProps/setProps - Query tree, get/set properties
-- studio.camera.focusOn - Move camera to look at something
-
-Context (selection, path, pointer) is AUTO-PROVIDED - don't call tools to get it.
-
-ROBLOX SCRIPT PLACEMENT:
-- Server Scripts → ServerScriptService (runs on server only)
-- ModuleScripts → ReplicatedStorage (shared) or ServerStorage (server-only)
-- GUI → StarterGui (ScreenGui) or in a Part (BillboardGui/SurfaceGui)
-
-When creating scripts, ALWAYS use className="Script" for ServerScriptService. Default to ServerScriptService for game logic.
-
-TESTING (PLAYTEST WORKFLOW):
-1. Create your script first (in ServerScriptService for server code)
-2. Start Run mode with studio.playtest.run
-3. Check status with studio.playtest.getStatus - look at isEdit/isRunMode
-4. Check logs with studio.logs.getHistory (NOT studio.logs.get)
-5. Stop with studio.playtest.stop when done
-
-IMPORTANT:
-- Run mode is server-only (F8) - cleaner for testing server scripts
-- After stopping, isEdit should be true
-- If stuck in run mode, call studio.playtest.stop again
-- Do NOT use LocalScripts for testing - use server scripts
-
-Be direct. Execute code. Use Run mode to test.`;
-
     console.log('[Bakable] Stream request:', (message || '(image only)').substring(0, 50) + '...');
     sendEvent('status', { message: 'Starting...' });
 
     // Build SDK options - use resume for session continuity
+    // No systemPrompt = uses Claude Code's default + CLAUDE.md + skills
     const sdkOptions = {
-      systemPrompt,
-      model: 'sonnet',
+      model: 'claude-opus-4-5-20251101',
       cwd: REPO_PATH,
       permissionMode: yoloMode ? 'bypassPermissions' : 'default',
       allowDangerouslySkipPermissions: yoloMode,
@@ -635,36 +599,18 @@ app.post('/chat', async (req, res) => {
       prompt = `Previous conversation:\n${historyContext}\n\nUser: ${message}${contextStr}`;
     }
 
-    const systemPrompt = `You are Bakable, an AI assistant specialized in game development with FULL ACCESS to Roblox Studio.
-
-CONTEXT is provided automatically - you already have selection, path, and pointer data in the user's message. Use it directly.
-
-You have MCP tools available to interact with Roblox Studio:
-- studio.eval - Execute Luau code directly in Studio (create, delete, modify)
-- studio.scripts.read/write - Read or write script content
-
-ROBLOX SCRIPT PLACEMENT:
-- Server Scripts → ServerScriptService (runs on server only)
-- Local Scripts → StarterPlayerScripts or StarterGui (runs on client)
-- ModuleScripts → ReplicatedStorage (shared) or ServerStorage (server-only)
-- GUI → StarterGui (ScreenGui) or in a Part (BillboardGui/SurfaceGui)
-
-When creating scripts, ALWAYS place them in the correct service. Default to ServerScriptService for game logic.
-
-When the user asks you to do something in Roblox Studio, USE THESE TOOLS.
-Be proactive. Execute code. Make changes. You have full control.`;
-
     console.log('[Bakable] Chat request:', message.substring(0, 50) + '...');
 
+    // No systemPrompt = uses Claude Code's default + CLAUDE.md + skills
     const response = query({
       prompt,
       options: {
-        systemPrompt,
-        model: 'sonnet',
+        model: 'claude-opus-4-5-20251101',
         cwd: REPO_PATH,
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
-        mcpServers
+        mcpServers,
+        settingSources: ['user', 'project']
       }
     });
 
@@ -1081,57 +1027,10 @@ async function runAgentTask(runId, task, workDir, scope, context) {
   }
 
   // System prompt for Roblox Studio interaction
-  const systemPrompt = `You are a Roblox Studio AI assistant. You can execute Lua code directly in Roblox Studio.
-
-IMPORTANT: Your working directory is "${workDir}". Only write files here using relative paths like "exec.lua", NOT absolute paths.
-
-TO EXECUTE CODE IN ROBLOX STUDIO:
-1. Write Lua code to "exec.lua" (just the filename, NOT a full path) - it will be automatically executed in Studio
-2. After writing, READ "exec.result.txt" to check if execution succeeded or failed
-
-Example - to make SpawnLocation neon material:
-Write to exec.lua:
-\`\`\`lua
-local spawn = workspace:FindFirstChild("SpawnLocation")
-if spawn then
-    spawn.Material = Enum.Material.Neon
-    print("Made SpawnLocation neon")
-end
-\`\`\`
-
-Example - to create a new Part:
-Write to exec.lua:
-\`\`\`lua
-local part = Instance.new("Part")
-part.Name = "MyPart"
-part.Size = Vector3.new(4, 1, 4)
-part.Position = Vector3.new(0, 10, 0)
-part.Anchored = true
-part.Material = Enum.Material.Neon
-part.BrickColor = BrickColor.new("Bright blue")
-part.Parent = workspace
-print("Created part:", part.Name)
-\`\`\`
-
-WORKFLOW:
-1. Write code to "exec.lua" (relative path only!)
-2. Wait briefly, then READ "exec.result.txt" to verify execution
-3. If there was an error, fix the code and try again
-4. Report success/failure to the user
-
-IMPORTANT:
-- NEVER use absolute paths like /Users/... - only use relative filenames
-- Always check exec.result.txt after writing exec.lua to confirm execution
-- The code runs in Studio's context with full access to game services
-- Use print() to show results to the user
-- If execution fails, read the error and fix your code
-- The selected instances are: ${context?.selection?.join(', ') || 'none'}`;
-
-  const fullPromptWithSystem = `${systemPrompt}\n\nUser request: ${fullPrompt}`;
-
-  addLog(`Full prompt: ${fullPromptWithSystem.substring(0, 200)}...`);
+  addLog(`Prompt: ${fullPrompt.substring(0, 200)}...`);
 
   // Use Claude Agent SDK - full Claude Code experience
+  // No systemPrompt = uses Claude Code's default + CLAUDE.md + skills
   try {
     const { query } = await import('@anthropic-ai/claude-agent-sdk');
 
@@ -1140,12 +1039,13 @@ IMPORTANT:
     const changedFiles = new Set();
 
     for await (const message of query({
-      prompt: fullPromptWithSystem,
+      prompt: fullPrompt,
       options: {
         cwd: workDir,
         allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Task', 'TodoWrite', 'WebSearch', 'WebFetch', 'AskUserQuestion', 'NotebookEdit', 'LSP', 'MCPSearch', 'EnterPlanMode', 'ExitPlanMode', 'KillShell', 'TaskOutput', 'Skill'],
         permissionMode: 'acceptEdits',
-        model: 'claude-opus-4-5-20251101'
+        model: 'claude-opus-4-5-20251101',
+        settingSources: ['user', 'project']
       }
     })) {
       if (run.cancelRequested) {
@@ -1237,28 +1137,13 @@ async function runAgentViaCLI(runId, task, workDir, scope, context) {
     broadcastRunLog(runId, log);
   };
 
-  const systemPrompt = `You are a Roblox Studio development assistant. You can create and modify Lua scripts that will be synced to Roblox Studio.
-
-AVAILABLE ACTIONS:
-- Write Lua scripts to the src/ folder - these will sync to Roblox Studio
-- Scripts in src/ServerScriptService/ become ServerScripts
-- Scripts in src/StarterPlayer/StarterPlayerScripts/ become LocalScripts
-- Scripts in src/ReplicatedStorage/ become ModuleScripts
-- Read and modify existing scripts in src/
-
-WORKFLOW:
-1. Write .lua files to the appropriate src/ subfolder
-2. The user will use /pull in Studio to see changes
-3. The user will use /apply to sync changes to Studio
-
-When asked to create something in Roblox, write the Lua script to the correct location.`;
-
-  let prompt = `${systemPrompt}\n\nUSER REQUEST: ${task}`;
+  // No systemPrompt - CLI picks up CLAUDE.md and skills from workDir
+  let prompt = task;
   if (scope?.focusFiles?.length > 0) {
     prompt += `\n\nFocus on: ${scope.focusFiles.join(', ')}`;
   }
 
-  addLog(`Running via CLI with Roblox context...`);
+  addLog(`Running via CLI...`);
 
   return new Promise((resolve) => {
     const proc = spawn('claude', ['-p', prompt], {
