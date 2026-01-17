@@ -1143,7 +1143,7 @@ IMPORTANT:
       prompt: fullPromptWithSystem,
       options: {
         cwd: workDir,
-        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
+        allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Task'],
         permissionMode: 'acceptEdits',
         model: 'claude-opus-4-5-20251101'
       }
