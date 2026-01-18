@@ -393,6 +393,7 @@ app.post('/chat/stream', async (req, res) => {
       allowDangerouslySkipPermissions: yoloMode,
       mcpServers,
       settingSources: ['user', 'project'],  // Enable skills from .claude/skills/
+      maxThinkingTokens: 16000,
     };
 
     // Resume existing session if sessionId provided
@@ -425,8 +426,18 @@ app.post('/chat/stream', async (req, res) => {
       }
 
       if (event.type === 'assistant' && event.message?.content) {
+        // Debug: log all block types to check for thinking
+        const blockTypes = event.message.content.map(b => b.type);
+        if (blockTypes.includes('thinking')) {
+          console.log('[Bakable] THINKING DETECTED:', blockTypes);
+        }
         for (const block of event.message.content) {
-          if (block.type === 'text') {
+          if (block.type === 'thinking') {
+            const thinking = block.thinking || '';
+            console.log('[Bakable] Thinking (' + thinking.length + ' chars):', thinking.substring(0, 100) + '...');
+            // Send thinking to UI
+            sendEvent('thinking', { content: thinking });
+          } else if (block.type === 'text') {
             fullText += block.text;
             sendEvent('text', { content: block.text });
           } else if (block.type === 'tool_use') {
@@ -610,7 +621,8 @@ app.post('/chat', async (req, res) => {
         permissionMode: 'bypassPermissions',
         allowDangerouslySkipPermissions: true,
         mcpServers,
-        settingSources: ['user', 'project']
+        settingSources: ['user', 'project'],
+        maxThinkingTokens: 16000,
       }
     });
 
@@ -1045,7 +1057,8 @@ async function runAgentTask(runId, task, workDir, scope, context) {
         allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'Task', 'TodoWrite', 'WebSearch', 'WebFetch', 'AskUserQuestion', 'NotebookEdit', 'LSP', 'MCPSearch', 'EnterPlanMode', 'ExitPlanMode', 'KillShell', 'TaskOutput', 'Skill'],
         permissionMode: 'acceptEdits',
         model: 'claude-opus-4-5-20251101',
-        settingSources: ['user', 'project']
+        settingSources: ['user', 'project'],
+        maxThinkingTokens: 16000,
       }
     })) {
       if (run.cancelRequested) {
