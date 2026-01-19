@@ -14,6 +14,7 @@ local Console = {}
 
 -- Log history buffer
 local logHistory: {{
+    id: number,
     timestamp: number,
     level: string,
     message: string,
@@ -22,6 +23,7 @@ local logHistory: {{
 
 local MAX_LOG_HISTORY = 1000
 local logConnection: RBXScriptConnection? = nil
+local nextLogId = 1  -- Incrementing ID for cursor-based fetching
 
 -- Initialize log capture
 function Console.init()
@@ -57,11 +59,13 @@ function Console.addLogEntry(message: string, messageType: Enum.MessageType)
     end
 
     table.insert(logHistory, {
+        id = nextLogId,
         timestamp = os.time(),
         level = level,
         message = message,
         source = nil -- Could parse from message if needed
     })
+    nextLogId = nextLogId + 1
 
     -- Trim history if too large
     while #logHistory > MAX_LOG_HISTORY do
@@ -69,51 +73,121 @@ function Console.addLogEntry(message: string, messageType: Enum.MessageType)
     end
 end
 
--- Get log history
+-- Get log history (supports cursor-based incremental fetching)
 function Console.getLogHistory(params: any): (boolean, any)
     local limit = params.limit or 100
     local levels = params.levels
     local pattern = params.pattern
+    local cursor = params.cursor  -- Log ID to start after (for incremental fetching)
 
     local result = {}
     local count = 0
+    local lastId = 0
 
-    -- Iterate from newest to oldest
-    for i = #logHistory, 1, -1 do
-        if count >= limit then
-            break
+    -- Find starting index if cursor provided
+    local startIndex = 1
+    if cursor and type(cursor) == "number" then
+        for i, entry in ipairs(logHistory) do
+            if entry.id > cursor then
+                startIndex = i
+                break
+            end
         end
+        -- If cursor is newer than all logs, start from end (no new logs)
+        if #logHistory > 0 and logHistory[#logHistory].id <= cursor then
+            return true, {
+                logs = {},
+                count = 0,
+                cursor = cursor,
+                hasMore = false
+            }
+        end
+    end
 
-        local entry = logHistory[i]
+    -- Iterate from startIndex (oldest first for cursor mode, newest first otherwise)
+    if cursor then
+        -- Cursor mode: return logs AFTER cursor, oldest first
+        for i = startIndex, #logHistory do
+            if count >= limit then
+                break
+            end
 
-        -- Filter by level
-        if levels and type(levels) == "table" then
-            local found = false
-            for _, level in ipairs(levels) do
-                if entry.level == level then
-                    found = true
-                    break
+            local entry = logHistory[i]
+
+            -- Filter by level
+            if levels and type(levels) == "table" then
+                local found = false
+                for _, level in ipairs(levels) do
+                    if entry.level == level then
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    continue
                 end
             end
-            if not found then
-                continue
-            end
-        end
 
-        -- Filter by pattern
-        if pattern and type(pattern) == "string" then
-            if not string.find(entry.message, pattern, 1, true) then
-                continue
+            -- Filter by pattern
+            if pattern and type(pattern) == "string" then
+                if not string.find(entry.message, pattern, 1, true) then
+                    continue
+                end
             end
-        end
 
-        table.insert(result, 1, entry) -- Insert at beginning to maintain order
-        count = count + 1
+            table.insert(result, entry)
+            lastId = entry.id
+            count = count + 1
+        end
+    else
+        -- No cursor: return newest logs (backwards iteration)
+        for i = #logHistory, 1, -1 do
+            if count >= limit then
+                break
+            end
+
+            local entry = logHistory[i]
+
+            -- Filter by level
+            if levels and type(levels) == "table" then
+                local found = false
+                for _, level in ipairs(levels) do
+                    if entry.level == level then
+                        found = true
+                        break
+                    end
+                end
+                if not found then
+                    continue
+                end
+            end
+
+            -- Filter by pattern
+            if pattern and type(pattern) == "string" then
+                if not string.find(entry.message, pattern, 1, true) then
+                    continue
+                end
+            end
+
+            table.insert(result, 1, entry) -- Insert at beginning to maintain order
+            if entry.id > lastId then
+                lastId = entry.id
+            end
+            count = count + 1
+        end
+    end
+
+    -- Determine if there are more logs
+    local hasMore = false
+    if #logHistory > 0 then
+        hasMore = lastId < logHistory[#logHistory].id
     end
 
     return true, {
         logs = result,
         count = #result,
+        cursor = lastId,  -- Use this cursor for next call to get only new logs
+        hasMore = hasMore,
         totalInHistory = #logHistory
     }
 end

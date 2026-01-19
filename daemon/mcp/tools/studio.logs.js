@@ -5,9 +5,9 @@
  */
 
 export function registerLogsTools(registerTool, callPlugin) {
-  // studio.logs.getHistory - Get recent logs
+  // studio.logs.getHistory - Get recent logs (supports cursor-based incremental fetching)
   registerTool('studio.logs.getHistory', {
-    description: 'Get recent log history from Studio',
+    description: 'Get log history from Studio. Use cursor for incremental fetching (only new logs since last call).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -23,6 +23,10 @@ export function registerLogsTools(registerTool, callPlugin) {
         pattern: {
           type: 'string',
           description: 'Filter by pattern match'
+        },
+        cursor: {
+          type: 'number',
+          description: 'Log ID to start after. Pass the cursor from previous response to get only NEW logs. Omit for latest logs.'
         }
       }
     }
