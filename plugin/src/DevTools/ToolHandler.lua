@@ -26,6 +26,8 @@ local Studio: any = nil
 local Network: any = nil
 local Performance: any = nil
 local Memory: any = nil
+local Input: any = nil
+local Animation: any = nil
 
 -- Initialize all handlers
 function ToolHandler.init()
@@ -46,6 +48,15 @@ function ToolHandler.init()
 
     ok, err = pcall(function() Studio = require(script.Parent.Studio) end)
     if not ok then warn("[Bakable] Studio failed to load:", err) end
+
+    ok, err = pcall(function() Input = require(script.Parent.Input) end)
+    if not ok then warn("[Bakable] Input failed to load:", err) end
+
+    ok, err = pcall(function() Network = require(script.Parent.Network) end)
+    if not ok then warn("[Bakable] Network failed to load:", err) end
+
+    ok, err = pcall(function() Animation = require(script.Parent.Animation) end)
+    if not ok then warn("[Bakable] Animation failed to load:", err) end
 
     -- Register all tool handlers
     ToolHandler.registerHandlers()
@@ -126,6 +137,38 @@ function ToolHandler.registerHandlers()
         handlers["studio.gui.toggle"] = Studio.toggleGui
         handlers["studio.gui.showOnly"] = Studio.showOnlyGui
         handlers["studio.gui.hideAll"] = Studio.hideAllGuis
+    end
+
+    -- Input Recording Tools
+    if Input then
+        handlers["studio.input.startRecording"] = Input.startRecording
+        handlers["studio.input.stopRecording"] = Input.stopRecording
+        handlers["studio.input.replay"] = Input.replay
+        handlers["studio.input.exportTest"] = Input.exportTest
+        handlers["studio.input.getStatus"] = Input.getStatus
+    end
+
+    -- Network/Replication Debugging Tools
+    if Network then
+        handlers["studio.network.getOwnership"] = Network.getOwnership
+        handlers["studio.network.setOwnership"] = Network.setOwnership
+        handlers["studio.network.startRemoteCapture"] = Network.startRemoteCapture
+        handlers["studio.network.stopRemoteCapture"] = Network.stopRemoteCapture
+        handlers["studio.network.getRemoteHistory"] = Network.getRemoteHistory
+        handlers["studio.network.measureLatency"] = Network.measureLatency
+        handlers["studio.network.listRemotes"] = Network.listRemotes
+    end
+
+    -- Animation State Inspection Tools
+    if Animation then
+        handlers["studio.animation.getPlaying"] = Animation.getPlaying
+        handlers["studio.animation.getTracks"] = Animation.getTracks
+        handlers["studio.animation.getTrackInfo"] = Animation.getTrackInfo
+        handlers["studio.animation.play"] = Animation.play
+        handlers["studio.animation.stop"] = Animation.stop
+        handlers["studio.animation.setTrackTime"] = Animation.setTrackTime
+        handlers["studio.animation.setTrackSpeed"] = Animation.setTrackSpeed
+        handlers["studio.animation.listAnimations"] = Animation.listAnimations
     end
 
     -- Runtime Tools (Phase 6) - placeholders

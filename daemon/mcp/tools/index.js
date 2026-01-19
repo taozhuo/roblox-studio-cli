@@ -85,6 +85,18 @@ export async function registerAllTools() {
   registerDatastoreTools(registerTool, callPlugin);
   registerPlaceTools(registerTool, callPlugin);
 
+  // Input Recording Tools
+  const { registerInputTools } = await import('./studio.input.js');
+  registerInputTools(registerTool, callPlugin);
+
+  // Network/Replication Debugging Tools
+  const { registerNetworkTools } = await import('./studio.network.js');
+  registerNetworkTools(registerTool, callPlugin);
+
+  // Animation State Inspection Tools
+  const { registerAnimationTools } = await import('./studio.animation.js');
+  registerAnimationTools(registerTool, callPlugin);
+
   // VLM Verification Tools (Gemini Flash)
   const { registerVlmTools } = await import('./vlm.verify.js');
   registerVlmTools(registerTool, callPlugin);
