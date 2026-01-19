@@ -2,6 +2,50 @@
 
 Features to add to match Chrome DevTools and game dev debugging tools.
 
+## Context Notification System (Like Claude Code)
+
+Claude Code pushes notifications into AI context when background tasks complete. We could do similar:
+
+### How Claude Code Does It
+```
+1. Background task runs
+2. Task completes/errors
+3. CLI injects <task-notification> into conversation
+4. AI sees it on next turn
+```
+
+### What We Could Add
+```javascript
+// Tauri app listens to daemon WebSocket
+daemon.onEvent("error-log", (data) => {
+  conversation.inject(`<studio-notification>
+    <type>error</type>
+    <message>${data.message}</message>
+  </studio-notification>`)
+})
+
+daemon.onEvent("remote-spike", (data) => {
+  conversation.inject(`<studio-notification>
+    <type>remote-spike</type>
+    <summary>${data.count} events from "${data.name}" in 1s</summary>
+  </studio-notification>`)
+})
+```
+
+### Notification Types to Consider
+- [ ] Error logs (immediate alert)
+- [ ] RemoteEvent spikes (spam detection)
+- [ ] Memory threshold exceeded
+- [ ] Playtest started/stopped
+- [ ] Script changed externally
+
+### Requirements
+- Tauri app must control conversation context
+- Daemon pushes events via WebSocket (already have)
+- Tauri injects into messages before API call
+
+---
+
 ## High Priority (Needs Plugin Work)
 
 ### 1. Input Recording/Replay
