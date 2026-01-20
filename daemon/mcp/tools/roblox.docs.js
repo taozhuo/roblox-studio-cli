@@ -1,69 +1,33 @@
 /**
  * Roblox Docs Tools - Search and read creator documentation
+ *
+ * Uses SQLite FTS5 for fast, fuzzy full-text search.
+ * Run `npm run index-docs` to build/rebuild the index.
  */
 
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DOCS_PATH = path.join(__dirname, '../../../docs/roblox-creator-docs/content/en-us');
-
-// Simple index cache
-let docsIndex = null;
-
-async function buildIndex() {
-  if (docsIndex) return docsIndex;
-
-  docsIndex = [];
-
-  async function walkDir(dir, category = '') {
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          await walkDir(fullPath, category ? `${category}/${entry.name}` : entry.name);
-        } else if (entry.name.endsWith('.md')) {
-          const content = await fs.readFile(fullPath, 'utf-8');
-          // Extract title from frontmatter or first heading
-          const titleMatch = content.match(/^title:\s*(.+)$/m) || content.match(/^#\s+(.+)$/m);
-          const title = titleMatch ? titleMatch[1].trim() : entry.name.replace('.md', '');
-
-          docsIndex.push({
-            path: fullPath,
-            relativePath: `${category}/${entry.name}`,
-            title,
-            category,
-            // Store first 500 chars for preview
-            preview: content.slice(0, 500).replace(/---[\s\S]*?---/, '').trim()
-          });
-        }
-      }
-    } catch (e) {
-      // Directory might not exist
-    }
-  }
-
-  await walkDir(DOCS_PATH);
-  console.log(`[MCP] Indexed ${docsIndex.length} Roblox docs`);
-  return docsIndex;
-}
+import * as kb from './knowledge-base.js';
 
 export function registerDocsTools(registerTool) {
   // roblox.docs.search - Search documentation by keyword
   registerTool('roblox.docs.search', {
-    description: 'Search Roblox Creator documentation by keyword. Returns matching docs with titles and paths.',
+    description: `Search Roblox Creator documentation using full-text search.
+
+Supports:
+- Prefix matching: "Tween" matches "TweenService", "TweenInfo"
+- Multiple terms: "remote event fire" finds docs mentioning all terms
+- Ranked results: most relevant docs first
+
+Run 'npm run index-docs' to build/update the search index.`,
     inputSchema: {
       type: 'object',
       properties: {
         query: {
           type: 'string',
-          description: 'Search query (e.g., "TweenService", "DataStore", "RemoteEvent")'
+          description: 'Search query (e.g., "TweenService", "DataStore GetAsync", "RemoteEvent")'
         },
         category: {
           type: 'string',
-          description: 'Optional category filter (e.g., "reference", "tutorials", "scripting")'
+          description: 'Optional category filter (e.g., "reference", "tutorials", "cloud")'
         },
         limit: {
           type: 'number',
@@ -73,30 +37,36 @@ export function registerDocsTools(registerTool) {
       required: ['query']
     }
   }, async ({ query, category, limit = 10 }) => {
-    const index = await buildIndex();
-    if (index.length === 0) {
-      return { error: 'Docs not found. Clone https://github.com/Roblox/creator-docs to docs/roblox-creator-docs/' };
-    }
+    try {
+      const results = kb.search(query, {
+        source: 'roblox',
+        category,
+        limit
+      });
 
-    const queryLower = query.toLowerCase();
-    const results = index
-      .filter(doc => {
-        if (category && !doc.category.toLowerCase().includes(category.toLowerCase())) {
-          return false;
+      if (results.length === 0) {
+        const stats = kb.getStats();
+        if (stats.total === 0) {
+          return {
+            error: 'Index is empty. Run: npm run index-docs',
+            hint: 'First clone docs: git clone https://github.com/Roblox/creator-docs docs/roblox-creator-docs'
+          };
         }
-        return doc.title.toLowerCase().includes(queryLower) ||
-               doc.relativePath.toLowerCase().includes(queryLower) ||
-               doc.preview.toLowerCase().includes(queryLower);
-      })
-      .slice(0, limit)
-      .map(doc => ({
-        title: doc.title,
-        path: doc.relativePath,
-        category: doc.category,
-        preview: doc.preview.slice(0, 200) + '...'
-      }));
+        return { results: [], message: 'No matching documents found' };
+      }
 
-    return { results, total: results.length };
+      return {
+        results: results.map(r => ({
+          title: r.title,
+          path: r.path,
+          category: r.category,
+          snippet: r.snippet?.replace(/>>>/g, '**').replace(/<<</g, '**') || ''
+        })),
+        total: results.length
+      };
+    } catch (e) {
+      return { error: e.message };
+    }
   });
 
   // roblox.docs.read - Read a specific doc file
@@ -113,27 +83,62 @@ export function registerDocsTools(registerTool) {
       required: ['docPath']
     }
   }, async ({ docPath }) => {
-    const fullPath = path.join(DOCS_PATH, docPath);
     try {
-      const content = await fs.readFile(fullPath, 'utf-8');
-      // Remove frontmatter for cleaner output
-      const cleaned = content.replace(/^---[\s\S]*?---\n*/, '');
-      return { content: cleaned };
+      const doc = kb.readDoc(docPath);
+      if (!doc) {
+        return { error: `Doc not found: ${docPath}` };
+      }
+      return {
+        title: doc.title,
+        category: doc.category,
+        content: doc.content
+      };
     } catch (e) {
-      return { error: `Doc not found: ${docPath}` };
+      return { error: e.message };
     }
   });
 
   // roblox.docs.categories - List available doc categories
   registerTool('roblox.docs.categories', {
-    description: 'List available documentation categories',
+    description: 'List available documentation categories with document counts',
     inputSchema: {
       type: 'object',
       properties: {}
     }
   }, async () => {
-    const index = await buildIndex();
-    const categories = [...new Set(index.map(d => d.category.split('/')[0]).filter(Boolean))];
-    return { categories };
+    try {
+      const categories = kb.getCategories();
+      const stats = kb.getStats();
+
+      return {
+        categories,
+        total: stats.total,
+        lastIndexed: stats.lastIndexed
+      };
+    } catch (e) {
+      return { error: e.message };
+    }
+  });
+
+  // roblox.docs.reindex - Rebuild the search index
+  registerTool('roblox.docs.reindex', {
+    description: 'Rebuild the documentation search index. Use this after updating the docs repo.',
+    inputSchema: {
+      type: 'object',
+      properties: {}
+    }
+  }, async () => {
+    try {
+      console.log('[MCP] Reindexing Roblox docs...');
+      const result = await kb.indexRobloxDocs();
+      console.log(`[MCP] Indexed ${result.indexed} docs`);
+      return {
+        success: true,
+        indexed: result.indexed,
+        errors: result.errors
+      };
+    } catch (e) {
+      return { error: e.message };
+    }
   });
 }
