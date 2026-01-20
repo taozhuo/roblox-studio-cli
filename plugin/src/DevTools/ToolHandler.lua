@@ -28,6 +28,7 @@ local Performance: any = nil
 local Memory: any = nil
 local Input: any = nil
 local Animation: any = nil
+local Query: any = nil
 
 -- Initialize all handlers
 function ToolHandler.init()
@@ -57,6 +58,9 @@ function ToolHandler.init()
 
     ok, err = pcall(function() Animation = require(script.Parent.Animation) end)
     if not ok then warn("[Bakable] Animation failed to load:", err) end
+
+    ok, err = pcall(function() Query = require(script.Parent.Query) end)
+    if not ok then warn("[Bakable] Query failed to load:", err) end
 
     -- Register all tool handlers
     ToolHandler.registerHandlers()
@@ -169,6 +173,27 @@ function ToolHandler.registerHandlers()
         handlers["studio.animation.setTrackTime"] = Animation.setTrackTime
         handlers["studio.animation.setTrackSpeed"] = Animation.setTrackSpeed
         handlers["studio.animation.listAnimations"] = Animation.listAnimations
+    end
+
+    -- Query Tools (jq/grep/sed-like)
+    if Query then
+        -- Core query tools
+        handlers["studio.query.run"] = Query.execute
+        handlers["studio.query.find"] = Query.find
+        handlers["studio.query.grep"] = Query.grep
+        handlers["studio.query.sed"] = Query.sed
+        handlers["studio.query.count"] = Query.count
+        handlers["studio.query.countByClass"] = Query.countByClass
+        -- Tag tools (CollectionService)
+        handlers["studio.query.findByTag"] = Query.findByTag
+        handlers["studio.query.getTags"] = Query.getTags
+        handlers["studio.query.listAllTags"] = Query.listAllTags
+        handlers["studio.query.addTag"] = Query.addTag
+        handlers["studio.query.removeTag"] = Query.removeTag
+        -- Attribute tools
+        handlers["studio.query.getAttributes"] = Query.getAttributes
+        handlers["studio.query.setAttribute"] = Query.setAttribute
+        handlers["studio.query.listAttributes"] = Query.listAttributes
     end
 
     -- Runtime Tools (Phase 6) - placeholders

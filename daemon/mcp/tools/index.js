@@ -111,5 +111,10 @@ export async function registerAllTools() {
   registerDocsTools(registerTool);
   console.error('[MCP] Roblox Docs tools registered (3 tools)');
 
+  // Query Tools (jq/grep/sed-like tools for instances and scripts)
+  const { registerQueryTools } = await import('./studio.query.js');
+  registerQueryTools(registerTool, callPlugin);
+  console.error('[MCP] Query tools registered (14 tools)');
+
   console.error('[MCP] All tools registered');
 }
