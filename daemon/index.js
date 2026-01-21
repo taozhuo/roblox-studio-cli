@@ -531,6 +531,19 @@ app.post('/chat/stream', async (req, res) => {
             };
             const displayName = friendlyNames[toolName] || toolName;
             console.log('[Bakable] Tool:', displayName);
+
+            // Log extra details for important tools
+            if (toolName === 'Task' && block.input) {
+              console.log('[Bakable]   Subagent:', block.input.subagent_type);
+              console.log('[Bakable]   Prompt:', (block.input.prompt || '').slice(0, 100) + '...');
+            }
+            if (toolName === 'TodoWrite' && block.input?.todos) {
+              console.log('[Bakable]   Todos:', block.input.todos.length, 'items');
+              for (const todo of block.input.todos.slice(0, 5)) {
+                console.log('[Bakable]     -', todo.status, ':', todo.content?.slice(0, 50));
+              }
+            }
+
             sendEvent('tool_start', { tool: displayName, input: block.input });
           }
         }

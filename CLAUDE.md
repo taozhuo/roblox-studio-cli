@@ -64,6 +64,22 @@ return _G.bakable.lastAction
 
 See `state-management` skill for full patterns (undo, cleanup, etc).
 
+## Asset Placement
+
+**ALWAYS inspect model size before placing:**
+
+1. Check `bakable-repo/asset-catalog.json` first
+2. If not in catalog, inspect via eval:
+```lua
+local cf, size = model:GetBoundingBox()
+local pivot = model:GetPivot()
+local groundOffset = pivot.Position.Y - (cf.Position.Y - size.Y/2)
+return { size = size, groundOffset = groundOffset }
+```
+3. Add `groundOffset` to Y when placing
+
+See `asset-inspector` skill for full patterns.
+
 ## Be Direct
 
 Execute code. Make changes. You have full control of Roblox Studio.
