@@ -50,6 +50,20 @@ Use this context directly - don't call tools to re-fetch it.
 3. Check `studio.logs.getHistory` for output/errors
 4. Use `studio.playtest.stop` when done testing
 
+## State Management
+
+Use `_G.bakable` to track state across eval calls:
+
+```lua
+_G.bakable = _G.bakable or { created = {}, lastAction = nil }
+local part = Instance.new("Part", workspace)
+table.insert(_G.bakable.created, part)
+_G.bakable.lastAction = "Created part"
+return _G.bakable.lastAction
+```
+
+See `state-management` skill for full patterns (undo, cleanup, etc).
+
 ## Be Direct
 
 Execute code. Make changes. You have full control of Roblox Studio.
