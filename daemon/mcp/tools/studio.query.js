@@ -72,11 +72,12 @@ Examples:
           type: 'array',
           items: {
             type: 'array',
-            items: [
+            prefixItems: [
               { type: 'string', description: 'Property name' },
               { type: 'string', description: 'Operator (==, !=, >, <, >=, <=, ~, contains)' },
-              { description: 'Value to compare' }
-            ]
+              { type: 'string', description: 'Value to compare (as string)' }
+            ],
+            items: false
           },
           description: 'Array of conditions: [["Prop", "op", value], ...]'
         },
@@ -330,7 +331,8 @@ Examples:
           description: 'Attribute name'
         },
         value: {
-          description: 'Attribute value (string, number, boolean, or nil to delete)'
+          type: 'string',
+          description: 'Attribute value as string (e.g., "hello", "123", "true", "null" for nil)'
         },
         path: {
           type: 'string',

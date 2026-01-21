@@ -44,7 +44,7 @@ export function registerDatastoreTools(registerTool, callPlugin) {
         universeId: { type: 'string', description: 'Universe ID' },
         datastoreName: { type: 'string', description: 'DataStore name' },
         key: { type: 'string', description: 'Entry key' },
-        value: { description: 'Value to write (JSON-serializable)' },
+        value: { type: 'string', description: 'Value to write (JSON string - will be parsed)' },
         scope: { type: 'string', description: 'Scope (default: global)' }
       },
       required: ['universeId', 'datastoreName', 'key', 'value']

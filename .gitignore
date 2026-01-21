@@ -9,3 +9,8 @@ node_modules/
 detai-repo/
 daemon/detai-repo/
 docs/roblox-creator-docs
+
+# Generated/downloaded files
+bin/
+types/
+data/

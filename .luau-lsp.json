@@ -1,0 +1,17 @@
+{
+  "luau-lsp": {
+    "command": [
+      "./bin/luau-lsp",
+      "lsp",
+      "--definitions=@roblox=./types/globalTypes.d.luau",
+      "--docs=./types/api-docs.json"
+    ],
+    "filePatterns": ["*.lua", "*.luau"],
+    "rootPatterns": [".luaurc", "default.project.json", "plugin.project.json"],
+    "initializationOptions": {
+      "platform": {
+        "type": "roblox"
+      }
+    }
+  }
+}

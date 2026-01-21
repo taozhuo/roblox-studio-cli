@@ -1,0 +1,20 @@
+{
+  "lspServers": {
+    "luau": {
+      "command": "../bin/luau-lsp",
+      "args": [
+        "lsp",
+        "--definitions=@roblox=../types/globalTypes.d.luau",
+        "--docs=../types/api-docs.json"
+      ],
+      "extensionToLanguage": {
+        ".lua": "lua",
+        ".luau": "luau"
+      },
+      "transport": "stdio",
+      "startupTimeout": 10000,
+      "restartOnCrash": true,
+      "maxRestarts": 3
+    }
+  }
+}

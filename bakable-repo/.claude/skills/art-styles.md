@@ -23,6 +23,47 @@ From [WoodReviewerRBX analysis](https://woodreviewerrbx.com/2025/04/18/good-for-
 
 ---
 
+### The "Modern Retro" Protocol (2026 Standard)
+
+**Constraint:** The map must look like 2008 Roblox, but use 2026 rendering tech.
+
+| Rule | Description |
+|------|-------------|
+| **FORBIDDEN** | `Enum.SurfaceType.Studs` (Deprecated) |
+| **REQUIRED** | `MaterialService` + `MaterialVariant` |
+
+**Global Rendering Rules:**
+1. **Material:** All parts must use `Enum.Material.Plastic`
+2. **Texture:** Apply a "Studs" `MaterialVariant` to `MaterialService`
+3. **Scaling:** `StudsPerTile = 4` (matches 4x4 stud geometry)
+4. **Pattern:** Ensure texture aligns with the grid
+
+**The Construction Logic:**
+```lua
+-- Build with standard parts (4x1x4 studs)
+local part = Instance.new("Part")
+part.Size = Vector3.new(4, 1, 4)
+part.Material = Enum.Material.Plastic
+
+-- Apply via MaterialVariant instead of TopSurface
+part.MaterialVariant = "ClassicStuds"
+```
+
+**Setup MaterialVariant (once per place):**
+```lua
+local MaterialService = game:GetService("MaterialService")
+
+local studMaterial = Instance.new("MaterialVariant")
+studMaterial.Name = "ClassicStuds"
+studMaterial.BaseMaterial = Enum.Material.Plastic
+studMaterial.StudsPerTile = 4
+studMaterial.ColorMap = "rbxassetid://9873266399"   -- diffuse
+studMaterial.NormalMap = "rbxassetid://9873266790"  -- 3D bumps
+studMaterial.Parent = MaterialService
+```
+
+---
+
 ### Method 1: Texture Overlay (How Grow a Garden Does It)
 
 ```lua
