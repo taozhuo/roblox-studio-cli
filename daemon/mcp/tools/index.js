@@ -99,6 +99,13 @@ export async function registerAllTools() {
   const { registerDocsTools } = await import('./roblox.docs.js');
   registerDocsTools(registerTool);
 
+  // Map Planner - Gemini 3 Flash vision for map building plans
+  const mapPlannerTools = await import('./map-planner.js');
+  mapPlannerTools.setPluginCaller(callPlugin);
+  for (const tool of mapPlannerTools.tools) {
+    registerTool(tool.name, tool.description, tool.inputSchema, tool.handler);
+  }
+
   console.error('[MCP] Essential tools registered (~60 tools, down from 110)');
 
   // ========== REMOVED (use studio.eval instead) ==========

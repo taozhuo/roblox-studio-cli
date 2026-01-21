@@ -26,6 +26,9 @@ import os from 'os';
 import { registerTool, callTool, getToolSchemas } from './mcp/server.js';
 import { setPluginCaller, registerAllTools } from './mcp/tools/index.js';
 
+// Gemini service for map planning
+import { generateMapPlan } from './services/gemini.js';
+
 const PORT = process.env.BAKABLE_PORT || 4849;
 const REPO_PATH = process.env.BAKABLE_REPO || './bakable-repo';
 
@@ -1400,6 +1403,41 @@ app.post('/playtest/input', async (req, res) => {
 
     res.json({ success: true, key, duration });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ Map Planning with Gemini ============
+
+app.post('/map/plan', async (req, res) => {
+  try {
+    const { screenshot, catalog, description, mapSize = 400 } = req.body;
+
+    if (!screenshot) {
+      return res.status(400).json({ error: 'Screenshot (base64) required' });
+    }
+    if (!catalog || !Array.isArray(catalog)) {
+      return res.status(400).json({ error: 'Asset catalog array required' });
+    }
+    if (!description) {
+      return res.status(400).json({ error: 'Map description required' });
+    }
+
+    console.log('[Bakable] Generating map plan with Gemini 3 Flash...');
+    console.log('[Bakable] Description:', description.substring(0, 100));
+    console.log('[Bakable] Assets:', catalog.length, 'items');
+    console.log('[Bakable] Map size:', mapSize);
+
+    const result = await generateMapPlan(screenshot, catalog, description, mapSize);
+
+    res.json({
+      ok: true,
+      raw: result.raw,
+      parsed: result.parsed
+    });
+
+  } catch (err) {
+    console.error('[Bakable] Map plan error:', err);
     res.status(500).json({ error: err.message });
   }
 });
