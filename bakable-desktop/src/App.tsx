@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import ChatPanel, { ImageAttachment } from './components/ChatPanel';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
+import TodoPanel from './components/TodoPanel';
 import './App.css';
 
 export interface Message {
@@ -26,6 +27,12 @@ export interface Session {
   sessionKey: string;
 }
 
+export interface TodoItem {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
+  activeForm?: string;
+}
+
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,6 +54,8 @@ export default function App() {
     const saved = localStorage.getItem('bakable-yolo-mode');
     return saved !== null ? saved === 'true' : true;
   });
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [showTodos, setShowTodos] = useState(true); // Auto-show when todos arrive
 
   // Save yoloMode to localStorage when it changes
   useEffect(() => {
@@ -127,6 +136,8 @@ export default function App() {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
+    let fullText = ''; // Declare outside try so catch can access it
+
     try {
       const useStreaming = typeof ReadableStream !== 'undefined';
       const endpoint = useStreaming ? 'http://127.0.0.1:4849/chat/stream' : 'http://127.0.0.1:4849/chat';
@@ -162,7 +173,7 @@ export default function App() {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let fullText = '';
+      fullText = ''; // Reset for streaming
       let assistantMsgId = (Date.now() + 1).toString();
       let buffer = ''; // Buffer for partial SSE messages
 
@@ -221,6 +232,11 @@ export default function App() {
                   // Capture session ID for conversation continuity
                   setClaudeSessionId(data.sessionId);
                   console.log('Session ID:', data.sessionId);
+                } else if (data.type === 'todos') {
+                  // Update todos from TodoWrite tool
+                  console.log('[SSE] Todos received:', data.todos.length);
+                  setTodos(data.todos);
+                  setShowTodos(true); // Auto-show when todos update
                 } else if (data.type === 'error') {
                   throw new Error(data.message);
                 } else if (data.type === 'done') {
@@ -279,6 +295,7 @@ export default function App() {
   const clearChat = useCallback(() => {
     setMessages([]);
     setClaudeSessionId(null); // Start fresh session
+    setTodos([]); // Clear todos
   }, []);
 
   return (
@@ -314,6 +331,13 @@ export default function App() {
         activeEditor={activeEditor}
         session={session}
       />
+
+      {showTodos && todos.length > 0 && (
+        <TodoPanel
+          todos={todos}
+          onClose={() => setShowTodos(false)}
+        />
+      )}
     </div>
   );
 }

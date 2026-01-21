@@ -542,6 +542,8 @@ app.post('/chat/stream', async (req, res) => {
               for (const todo of block.input.todos.slice(0, 5)) {
                 console.log('[Bakable]     -', todo.status, ':', todo.content?.slice(0, 50));
               }
+              // Send todos to UI
+              sendEvent('todos', { todos: block.input.todos });
             }
 
             sendEvent('tool_start', { tool: displayName, input: block.input });
