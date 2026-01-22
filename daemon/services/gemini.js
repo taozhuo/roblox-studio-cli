@@ -1,9 +1,14 @@
 /**
  * Gemini API integration for map planning
- * Uses Gemini 2.5 Pro vision to analyze asset packs and generate map blueprints
+ *
+ * Workflow:
+ * 1. Nano Banana Pro: User intent + asset pack screenshot → Conceptual image
+ * 2. Gemini 3 Flash: Asset catalog + conceptual image → Building plan
+ * 3. Map builder subagent: Uses plan to generate Lua script
  */
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
+const GEMINI_3_FLASH_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent';
+const NANO_BANANA_PRO_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-image-preview:generateContent';
 
 /**
  * Build the prompt for Gemini to generate a map plan
@@ -97,7 +102,7 @@ export async function generateMapPlan(imageBase64, catalog, userRequest, mapSize
     console.log('[Gemini] Map size:', mapSize);
     console.log('[Gemini] Request:', userRequest.substring(0, 100) + '...');
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const response = await fetch(`${GEMINI_3_FLASH_URL}?key=${apiKey}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -169,24 +174,189 @@ function parseMapPlan(text, mapSize) {
 }
 
 /**
- * Generate a conceptual map image (sends to Gemini image generation)
- * Note: This uses a different model/endpoint for image generation
+ * Generate a conceptual map image using Nano Banana Pro
+ * @param {string|null} assetPackScreenshot - Base64 encoded screenshot of asset pack (optional)
+ * @param {string} userIntent - User's description of desired map
+ * @param {Object} options - Generation options
+ * @returns {Promise<Object>} - Contains base64 image and text description
  */
-export async function generateConceptImage(mapPlan, style = 'isometric pixel art') {
+export async function generateConceptImage(assetPackScreenshot, userIntent, options = {}) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY not set');
     }
 
-    // For now, just return the plan - image generation would use Imagen or similar
-    console.log('[Gemini] Concept image generation not yet implemented');
+    const {
+        aspectRatio = '1:1',
+        imageSize = '1K',
+        style = 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts'
+    } = options;
+
+    // Build prompt based on whether we have an asset pack screenshot
+    const hasAssets = !!assetPackScreenshot;
+
+    const prompt = hasAssets
+        ? `You are a Roblox map concept artist. Look at this asset pack screenshot showing the available 3D models.
+
+USER REQUEST: ${userIntent}
+
+Generate a TOP-DOWN conceptual map image showing how these assets should be arranged. The image should be:
+- Bird's eye view (looking straight down)
+- Clear zones and regions visible
+- Show placement of key landmarks
+- Use ${style}
+- Make it look like a game map blueprint/plan
+
+This conceptual image will be used by another AI to generate the actual building instructions.`
+        : `You are a Roblox map concept artist creating a map in ${style}.
+
+USER REQUEST: ${userIntent}
+
+Generate a TOP-DOWN conceptual map image. The image should be:
+- Bird's eye view (looking straight down)
+- Clear zones and regions visible
+- Show placement of key structures and landmarks
+- Use ${style} - blocky, colorful, with visible studs on surfaces
+- Make it look like a Roblox game map blueprint
+
+NOTE: No pre-made assets are available. The map will be built from basic Parts (blocks, cylinders, wedges) with classic Roblox studs. Design accordingly - keep shapes simple and blocky.
+
+This conceptual image will be used by another AI to generate Luau code that builds the map from scratch.`;
+
+    // Build request parts
+    const parts = [];
+    if (hasAssets) {
+        parts.push({
+            inline_data: {
+                mime_type: 'image/png',
+                data: assetPackScreenshot
+            }
+        });
+    }
+    parts.push({ text: prompt });
+
+    const requestBody = {
+        contents: [{ parts }],
+        generationConfig: {
+            responseModalities: ['TEXT', 'IMAGE'],
+            imageConfig: {
+                aspectRatio: aspectRatio,
+                imageSize: imageSize
+            },
+            temperature: 0.8,
+            maxOutputTokens: 2048
+        }
+    };
+
+    console.log('[Nano Banana Pro] Generating conceptual map image...');
+    console.log('[Nano Banana Pro] Style:', style);
+    console.log('[Nano Banana Pro] Has asset pack:', hasAssets);
+    console.log('[Nano Banana Pro] User intent:', userIntent.substring(0, 100) + '...');
+
+    const response = await fetch(`${NANO_BANANA_PRO_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('[Nano Banana Pro] API error:', error);
+        throw new Error(`Nano Banana Pro API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    console.log('[Nano Banana Pro] Response received');
+
+    // Extract image and text from response
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    let imageBase64 = null;
+    let description = null;
+
+    for (const part of parts) {
+        if (part.inline_data?.data) {
+            imageBase64 = part.inline_data.data;
+        }
+        if (part.text) {
+            description = part.text;
+        }
+    }
+
+    if (!imageBase64) {
+        throw new Error('No image in Nano Banana Pro response');
+    }
+
     return {
-        message: 'Concept image generation requires Imagen API',
-        plan: mapPlan
+        imageBase64,
+        description,
+        mimeType: 'image/png'
+    };
+}
+
+/**
+ * Full map generation workflow:
+ * 1. Nano Banana Pro: user intent + optional asset screenshot → conceptual image
+ * 2. Gemini 3 Flash: catalog + conceptual image → building plan
+ *
+ * If no asset pack is provided, map builder will build from basic Parts (classic Roblox stud style)
+ * or search toolbox for assets (future feature).
+ *
+ * @param {Object} options
+ * @param {string} options.userIntent - User's description of desired map
+ * @param {string|null} options.assetPackScreenshot - Screenshot of assets (optional)
+ * @param {Array} options.catalog - Asset catalog (optional, defaults to empty)
+ * @param {number} options.mapSize - Map size in studs (default 400)
+ * @param {string} options.style - Visual style (default: classic Roblox stud)
+ */
+export async function generateFullMapPlan(options) {
+    // Handle both old signature (screenshot, catalog, intent, size) and new options object
+    let config;
+    if (typeof options === 'object' && options !== null && 'userIntent' in options) {
+        config = options;
+    } else {
+        // Backwards compatibility: old positional args
+        const [assetPackScreenshot, catalog, userIntent, mapSize] = arguments;
+        config = { assetPackScreenshot, catalog, userIntent, mapSize };
+    }
+
+    const {
+        userIntent,
+        assetPackScreenshot = null,
+        catalog = [],
+        mapSize = 400,
+        style = 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts'
+    } = config;
+
+    const hasAssets = !!assetPackScreenshot && catalog.length > 0;
+
+    console.log('[Map Planner] Starting full workflow...');
+    console.log('[Map Planner] Mode:', hasAssets ? 'Asset-based' : 'Build from parts (classic stud)');
+    console.log('[Map Planner] Style:', style);
+
+    // Step 1: Generate conceptual image with Nano Banana Pro
+    console.log('[Map Planner] Step 1: Generating conceptual image with Nano Banana Pro...');
+    const conceptResult = await generateConceptImage(assetPackScreenshot, userIntent, { style });
+
+    // Step 2: Generate building plan with Gemini 3 Flash using the conceptual image
+    console.log('[Map Planner] Step 2: Generating building plan with Gemini 3 Flash...');
+    const planResult = await generateMapPlan(conceptResult.imageBase64, catalog, userIntent, mapSize);
+
+    return {
+        conceptImage: conceptResult.imageBase64,
+        conceptDescription: conceptResult.description,
+        buildingPlan: planResult.raw,
+        parsedPlan: planResult.parsed,
+        catalog,
+        mapSize,
+        style,
+        buildMode: hasAssets ? 'assets' : 'parts'
     };
 }
 
 export default {
     generateMapPlan,
-    generateConceptImage
+    generateConceptImage,
+    generateFullMapPlan
 };

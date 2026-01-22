@@ -1,9 +1,13 @@
 /**
  * MCP Tool: Map Planner
- * Uses Gemini 3 Flash to generate map building plans from asset pack screenshots
+ *
+ * Workflow:
+ * 1. Nano Banana Pro: User intent + asset pack screenshot → Conceptual image
+ * 2. Gemini 3 Flash: Asset catalog + conceptual image → Building plan
+ * 3. Map builder subagent: Uses plan to generate Lua script
  */
 
-import { generateMapPlan } from '../../services/gemini.js';
+import { generateMapPlan, generateConceptImage, generateFullMapPlan } from '../../services/gemini.js';
 
 let pluginCaller = null;
 
@@ -13,27 +17,156 @@ export function setPluginCaller(caller) {
 
 export const tools = [
     {
+        name: 'studio.map.generateFullPlan',
+        description: `Generate a complete map plan using the full AI workflow:
+
+1. Nano Banana Pro (Gemini 3 Pro Image): Creates a conceptual map image from user intent (+ optional asset screenshot)
+2. Gemini 3 Flash: Analyzes conceptual image + asset catalog to generate building plan
+
+TWO MODES:
+- With assets: Provide screenshot + catalog → plan uses those assets
+- Without assets: Only provide description → plan uses basic Parts (classic Roblox stud style)
+
+This is the RECOMMENDED tool for map generation. Returns both the conceptual image and building plan.`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                description: {
+                    type: 'string',
+                    description: 'User description of desired map (e.g., "medieval village with forest and river")'
+                },
+                screenshot: {
+                    type: 'string',
+                    description: 'Base64 encoded screenshot of asset pack overview (OPTIONAL - if not provided, builds from Parts)'
+                },
+                catalog: {
+                    type: 'array',
+                    description: 'Asset catalog with names and sizes (OPTIONAL)',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: { type: 'string' },
+                            category: { type: 'string' },
+                            size: {
+                                type: 'object',
+                                properties: {
+                                    x: { type: 'number' },
+                                    y: { type: 'number' },
+                                    z: { type: 'number' }
+                                }
+                            }
+                        }
+                    }
+                },
+                mapSize: {
+                    type: 'number',
+                    description: 'Map size in studs (default 400)',
+                    default: 400
+                },
+                style: {
+                    type: 'string',
+                    description: 'Visual style (default: "classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts")',
+                    default: 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts'
+                }
+            },
+            required: ['description']
+        },
+        handler: async ({ description, screenshot = null, catalog = [], mapSize = 400, style }) => {
+            if (!process.env.GEMINI_API_KEY) {
+                return { error: 'GEMINI_API_KEY not configured in environment' };
+            }
+
+            try {
+                const result = await generateFullMapPlan({
+                    userIntent: description,
+                    assetPackScreenshot: screenshot,
+                    catalog,
+                    mapSize,
+                    style
+                });
+                return {
+                    success: true,
+                    buildMode: result.buildMode,
+                    conceptImage: result.conceptImage,
+                    conceptDescription: result.conceptDescription,
+                    buildingPlan: result.buildingPlan,
+                    parsedPlan: result.parsedPlan
+                };
+            } catch (err) {
+                return { error: err.message };
+            }
+        }
+    },
+    {
+        name: 'studio.map.generateConceptImage',
+        description: `Generate a conceptual map image using Nano Banana Pro (Gemini 3 Pro Image).
+
+Takes user intent (+ optional asset screenshot) and generates a top-down conceptual map image.
+
+TWO MODES:
+- With assets: Provide screenshot → shows how those assets should be arranged
+- Without assets: No screenshot → shows map layout for building from Parts
+
+Use this if you want to preview the concept before generating the full building plan.`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                description: {
+                    type: 'string',
+                    description: 'User description of desired map'
+                },
+                screenshot: {
+                    type: 'string',
+                    description: 'Base64 encoded screenshot of asset pack overview (OPTIONAL)'
+                },
+                style: {
+                    type: 'string',
+                    description: 'Visual style (default: classic Roblox stud style)',
+                    default: 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts'
+                },
+                aspectRatio: {
+                    type: 'string',
+                    description: 'Image aspect ratio (default "1:1")',
+                    default: '1:1'
+                },
+                imageSize: {
+                    type: 'string',
+                    description: 'Image size: "1K", "2K", or "4K" (default "1K")',
+                    default: '1K'
+                }
+            },
+            required: ['description']
+        },
+        handler: async ({ description, screenshot = null, style, aspectRatio = '1:1', imageSize = '1K' }) => {
+            if (!process.env.GEMINI_API_KEY) {
+                return { error: 'GEMINI_API_KEY not configured in environment' };
+            }
+
+            try {
+                const result = await generateConceptImage(screenshot, description, { style, aspectRatio, imageSize });
+                return {
+                    success: true,
+                    imageBase64: result.imageBase64,
+                    description: result.description
+                };
+            } catch (err) {
+                return { error: err.message };
+            }
+        }
+    },
+    {
         name: 'studio.map.generatePlan',
-        description: `Generate a detailed map building plan using Gemini 3 Flash vision AI.
+        description: `Generate a building plan using Gemini 3 Flash (Step 2 only).
 
-Takes a screenshot of the asset pack and generates a structured building manifest with:
-- Zone definitions and coordinates
-- Asset placement rules and densities
-- Landmark positions
-- Path/road layouts
+Takes an image (conceptual or screenshot) + asset catalog and generates a structured building manifest.
 
-Requires:
-1. Capture viewport screenshot first (studio.captureViewport)
-2. Generate asset catalog (studio.map.catalogAssets)
-3. User's map description
-
-Returns a detailed procedural generation manifest.`,
+NOTE: Prefer studio.map.generateFullPlan which runs the complete workflow.`,
         inputSchema: {
             type: 'object',
             properties: {
                 screenshot: {
                     type: 'string',
-                    description: 'Base64 encoded screenshot of asset pack overview'
+                    description: 'Base64 encoded image (conceptual image or asset screenshot)'
                 },
                 catalog: {
                     type: 'array',

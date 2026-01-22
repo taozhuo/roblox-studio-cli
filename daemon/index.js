@@ -27,7 +27,7 @@ import { registerTool, callTool, getToolSchemas } from './mcp/server.js';
 import { setPluginCaller, registerAllTools } from './mcp/tools/index.js';
 
 // Gemini service for map planning
-import { generateMapPlan } from './services/gemini.js';
+import { generateMapPlan, generateConceptImage, generateFullMapPlan } from './services/gemini.js';
 
 const PORT = process.env.BAKABLE_PORT || 4849;
 const REPO_PATH = process.env.BAKABLE_REPO || './bakable-repo';
@@ -1438,6 +1438,91 @@ app.post('/map/plan', async (req, res) => {
 
   } catch (err) {
     console.error('[Bakable] Map plan error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Generate conceptual image with Nano Banana Pro
+app.post('/map/concept', async (req, res) => {
+  try {
+    const {
+      description,
+      screenshot = null,
+      style = 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts',
+      aspectRatio = '1:1',
+      imageSize = '1K'
+    } = req.body;
+
+    if (!description) {
+      return res.status(400).json({ error: 'Map description required' });
+    }
+
+    console.log('[Bakable] Generating conceptual image with Nano Banana Pro...');
+    console.log('[Bakable] Mode:', screenshot ? 'Asset-based' : 'Build from parts');
+    console.log('[Bakable] Style:', style);
+    console.log('[Bakable] Description:', description.substring(0, 100));
+
+    const result = await generateConceptImage(screenshot, description, { style, aspectRatio, imageSize });
+
+    res.json({
+      ok: true,
+      imageBase64: result.imageBase64,
+      description: result.description
+    });
+
+  } catch (err) {
+    console.error('[Bakable] Concept image error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Full workflow: Nano Banana Pro → Gemini 3 Flash
+app.post('/map/full-plan', async (req, res) => {
+  try {
+    const {
+      description,
+      screenshot = null,
+      catalog = [],
+      mapSize = 400,
+      style = 'classic Roblox stud style, blocky low-poly aesthetic with visible studs on parts'
+    } = req.body;
+
+    if (!description) {
+      return res.status(400).json({ error: 'Map description required' });
+    }
+
+    const hasAssets = !!screenshot && catalog.length > 0;
+
+    console.log('[Bakable] Starting full map generation workflow...');
+    console.log('[Bakable] Mode:', hasAssets ? 'Asset-based' : 'Build from parts (classic stud)');
+    console.log('[Bakable] Style:', style);
+    console.log('[Bakable] Step 1: Nano Banana Pro (conceptual image)');
+    console.log('[Bakable] Step 2: Gemini 3 Flash (building plan)');
+    console.log('[Bakable] Description:', description.substring(0, 100));
+    if (hasAssets) {
+      console.log('[Bakable] Assets:', catalog.length, 'items');
+    }
+    console.log('[Bakable] Map size:', mapSize);
+
+    const result = await generateFullMapPlan({
+      userIntent: description,
+      assetPackScreenshot: screenshot,
+      catalog,
+      mapSize,
+      style
+    });
+
+    res.json({
+      ok: true,
+      buildMode: result.buildMode,
+      conceptImage: result.conceptImage,
+      conceptDescription: result.conceptDescription,
+      buildingPlan: result.buildingPlan,
+      parsedPlan: result.parsedPlan
+    });
+
+  } catch (err) {
+    console.error('[Bakable] Full map plan error:', err);
     res.status(500).json({ error: err.message });
   }
 });
