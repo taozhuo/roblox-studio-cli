@@ -42,6 +42,58 @@ local function resolvePath(path)
     return current
 end
 
+-- Rename duplicate children in a folder (Model, Model → Model_1, Model_2)
+-- This should be run BEFORE dumpTree so paths are unique
+local function renameDuplicatesRecursive(folder, depth, maxDepth, renamed)
+    if depth > maxDepth then return end
+
+    -- Count names
+    local nameCount = {}
+    for _, child in ipairs(folder:GetChildren()) do
+        nameCount[child.Name] = (nameCount[child.Name] or 0) + 1
+    end
+
+    -- Rename duplicates
+    local nameIndex = {}
+    for _, child in ipairs(folder:GetChildren()) do
+        local originalName = child.Name
+        if nameCount[originalName] > 1 then
+            nameIndex[originalName] = (nameIndex[originalName] or 0) + 1
+            local newName = originalName .. "_" .. nameIndex[originalName]
+            child.Name = newName
+            table.insert(renamed, {
+                path = folder:GetFullName() .. "/" .. newName,
+                originalName = originalName,
+                newName = newName,
+            })
+        end
+
+        -- Recurse into Models and Folders
+        if child:IsA("Model") or child:IsA("Folder") then
+            renameDuplicatesRecursive(child, depth + 1, maxDepth, renamed)
+        end
+    end
+end
+
+-- Public function to rename duplicates in a folder
+function AssetOrganizer.renameDuplicates(folderPath, maxDepth)
+    maxDepth = maxDepth or 10
+
+    local folder = resolvePath(folderPath)
+    if not folder then
+        return { error = "Folder not found: " .. folderPath }
+    end
+
+    local renamed = {}
+    renameDuplicatesRecursive(folder, 0, maxDepth, renamed)
+
+    return {
+        ok = true,
+        renamed = #renamed,
+        items = renamed,
+    }
+end
+
 -- Get info about any instance (Model, MeshPart, Part, etc.)
 local function getInstanceInfo(inst)
     local info = {
@@ -100,15 +152,30 @@ local function dumpTreeRecursive(inst, path, depth, maxDepth)
     local children = inst:GetChildren()
     if #children > 0 then
         node.children = {}
+        -- Track name counts for indexed paths
+        local nameCount = {}
         for _, child in ipairs(children) do
+            nameCount[child.Name] = (nameCount[child.Name] or 0) + 1
+        end
+        -- Track which index we're on for each name
+        local nameIndex = {}
+        for _, child in ipairs(children) do
+            -- Build path with _N suffix if duplicate name
+            local childPath
+            if nameCount[child.Name] > 1 then
+                nameIndex[child.Name] = (nameIndex[child.Name] or 0) + 1
+                childPath = path .. "/" .. child.Name .. "_" .. nameIndex[child.Name]
+            else
+                childPath = path .. "/" .. child.Name
+            end
+
             -- Only recurse into Models and Folders
             if child:IsA("Model") or child:IsA("Folder") then
-                local childPath = path .. "/" .. child.Name
                 table.insert(node.children, dumpTreeRecursive(child, childPath, depth + 1, maxDepth))
             elseif child:IsA("BasePart") then
                 -- Include parts but don't recurse
                 local partInfo = getInstanceInfo(child)
-                partInfo.path = path .. "/" .. child.Name
+                partInfo.path = childPath
                 table.insert(node.children, partInfo)
             end
         end

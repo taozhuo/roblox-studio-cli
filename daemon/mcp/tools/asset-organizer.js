@@ -57,6 +57,57 @@ async function ensureModule(moduleName) {
 
 export const tools = [
     {
+        name: 'studio.assets.renameDuplicates',
+        description: `Rename duplicate models in a folder BEFORE any other operations.
+
+Run this FIRST before dumpTree() if a folder has multiple models with the same name.
+This actually renames them in Studio (Model, Model → Model_1, Model_2).
+
+After renaming, paths will be unique and dumpTree/selectAssets will work correctly.`,
+        inputSchema: {
+            type: 'object',
+            properties: {
+                folderPath: {
+                    type: 'string',
+                    description: 'Path to folder (e.g., "Workspace/Farm Pack/Buildings/Barns")'
+                },
+                maxDepth: {
+                    type: 'number',
+                    description: 'Max recursion depth (default 10)',
+                    default: 10
+                }
+            },
+            required: ['folderPath']
+        },
+        handler: async ({ folderPath, maxDepth = 10 }) => {
+            if (!pluginCaller) {
+                return { error: 'Plugin not connected' };
+            }
+
+            try {
+                await ensureModule('AssetOrganizer');
+
+                const code = `
+                    local HttpService = game:GetService("HttpService")
+                    local result = Bakable.AssetOrganizer.renameDuplicates("${folderPath}", ${maxDepth})
+                    return HttpService:JSONEncode(result)
+                `;
+                const result = await pluginCaller('studio.eval', { code });
+
+                if (typeof result.result === 'string') {
+                    try {
+                        return JSON.parse(result.result);
+                    } catch {
+                        return result;
+                    }
+                }
+                return result.result || result;
+            } catch (err) {
+                return { error: err.message };
+            }
+        }
+    },
+    {
         name: 'studio.assets.dumpTree',
         description: `Dump full tree structure of a folder for analysis.
 
