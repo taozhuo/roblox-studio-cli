@@ -18,13 +18,35 @@ const toolSchemas = [];
 
 /**
  * Register a tool with the MCP server
+ * Supports two signatures:
+ * - registerTool(name, schema, handler) where schema = { description, inputSchema }
+ * - registerTool(name, description, inputSchema, handler) for convenience
  */
-export function registerTool(name, schema, handler) {
+export function registerTool(name, descOrSchema, inputSchemaOrHandler, maybeHandler) {
+  let description, inputSchema, handler;
+
+  if (maybeHandler !== undefined) {
+    // 4-arg form: (name, description, inputSchema, handler)
+    description = descOrSchema;
+    inputSchema = inputSchemaOrHandler;
+    handler = maybeHandler;
+  } else if (typeof descOrSchema === 'object' && descOrSchema.description) {
+    // 3-arg form with schema object: (name, { description, inputSchema }, handler)
+    description = descOrSchema.description;
+    inputSchema = descOrSchema.inputSchema;
+    handler = inputSchemaOrHandler;
+  } else {
+    // Legacy 3-arg: (name, description, handler) - no inputSchema
+    description = descOrSchema;
+    inputSchema = { type: 'object', properties: {} };
+    handler = inputSchemaOrHandler;
+  }
+
   tools.set(name, handler);
   toolSchemas.push({
     name,
-    description: schema.description,
-    inputSchema: schema.inputSchema
+    description,
+    inputSchema
   });
 }
 

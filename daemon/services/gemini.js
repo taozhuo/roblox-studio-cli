@@ -271,11 +271,11 @@ This conceptual image will be used by another AI to generate Luau code that buil
     console.log('[Nano Banana Pro] Response received');
 
     // Extract image and text from response
-    const parts = data.candidates?.[0]?.content?.parts || [];
+    const responseParts = data.candidates?.[0]?.content?.parts || [];
     let imageBase64 = null;
     let description = null;
 
-    for (const part of parts) {
+    for (const part of responseParts) {
         if (part.inline_data?.data) {
             imageBase64 = part.inline_data.data;
         }
@@ -355,8 +355,138 @@ export async function generateFullMapPlan(options) {
     };
 }
 
+/**
+ * Identify assets from an InventoryUI/AssetOrganizer screenshot
+ * Uses Gemini 3 Flash to analyze the grid and identify each asset
+ *
+ * @param {string} screenshotBase64 - Screenshot of the asset grid
+ * @param {Array} pageAssets - Array of { gridPosition, index, currentName, parent, size }
+ * @returns {Promise<Object>} - Identifications for each asset
+ */
+export async function identifyAssets(screenshotBase64, pageAssets) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        throw new Error('GEMINI_API_KEY not set');
+    }
+
+    const prompt = `You are analyzing a grid of 3D model assets from a Roblox asset pack.
+
+IMPORTANT: The camera faces -Z direction. So what you see as the "front" of the model in the viewport is the -Z face.
+
+The grid shows ${pageAssets.length} assets. Here's what's displayed in each cell:
+${pageAssets.map(a => `- Grid position ${a.gridPosition}: "${a.currentName}" from folder "${a.parent}" (${a.size} studs)`).join('\n')}
+
+For EACH asset in the grid (left-to-right, top-to-bottom), analyze and return:
+
+1. **identifiedName**: A clear, descriptive name for this asset (e.g., "RedBarn_Large", "PineTall", "WoodenFence_Section")
+   - Use PascalCase with underscores for variants
+   - Be specific (not just "Barn" but "RedBarn_Small" vs "RedBarn_Large")
+
+2. **rotationOffset**: Degrees to rotate so the FUNCTIONAL FRONT faces -Z (camera direction)
+   - 0 = front already faces camera
+   - 180 = back faces camera (front is opposite)
+   - 90 = left side faces camera
+   - -90 = right side faces camera
+   - null = radial symmetry (rotation doesn't matter, e.g., trees, rocks)
+
+3. **comment**: Brief note about the asset useful for placement
+   - What is it? Key features?
+   - Where are doors/entrances?
+   - Any asymmetry to note?
+
+Return a JSON array in this exact format:
+[
+  {
+    "gridPosition": 1,
+    "identifiedName": "RedBarn_Small",
+    "rotationOffset": 0,
+    "comment": "Small red barn with double doors on front. Silo attached on right side."
+  },
+  ...
+]
+
+Analyze all ${pageAssets.length} visible assets.`;
+
+    const requestBody = {
+        contents: [{
+            parts: [
+                {
+                    inline_data: {
+                        mime_type: 'image/png',
+                        data: screenshotBase64
+                    }
+                },
+                {
+                    text: prompt
+                }
+            ]
+        }],
+        generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 4096
+        }
+    };
+
+    console.log('[Gemini] Identifying assets from grid screenshot...');
+    console.log('[Gemini] Assets on page:', pageAssets.length);
+
+    const response = await fetch(`${GEMINI_3_FLASH_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error('[Gemini] API error:', error);
+        throw new Error(`Gemini API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+        throw new Error('No text in Gemini response');
+    }
+
+    console.log('[Gemini] Raw response:', text.substring(0, 200) + '...');
+
+    // Parse JSON from response (handle markdown code blocks)
+    let identifications;
+    try {
+        // Try to extract JSON from markdown code block
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const jsonStr = jsonMatch ? jsonMatch[1].trim() : text.trim();
+        identifications = JSON.parse(jsonStr);
+    } catch (parseErr) {
+        console.error('[Gemini] Failed to parse JSON:', parseErr);
+        throw new Error('Failed to parse Gemini response as JSON: ' + parseErr.message);
+    }
+
+    // Map gridPosition back to asset index
+    const results = identifications.map(ident => {
+        const asset = pageAssets.find(a => a.gridPosition === ident.gridPosition);
+        return {
+            index: asset?.index,
+            gridPosition: ident.gridPosition,
+            identifiedName: ident.identifiedName,
+            rotationOffset: ident.rotationOffset,
+            comment: ident.comment
+        };
+    });
+
+    return {
+        ok: true,
+        identifications: results,
+        raw: text
+    };
+}
+
 export default {
     generateMapPlan,
     generateConceptImage,
-    generateFullMapPlan
+    generateFullMapPlan,
+    identifyAssets
 };

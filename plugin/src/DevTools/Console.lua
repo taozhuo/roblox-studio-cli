@@ -10,6 +10,9 @@
 
 local LogService = game:GetService("LogService")
 
+-- Capture require at module level for sandbox use
+local _require = require
+
 local Console = {}
 
 -- Log history buffer
@@ -24,6 +27,35 @@ local logHistory: {{
 local MAX_LOG_HISTORY = 1000
 local logConnection: RBXScriptConnection? = nil
 local nextLogId = 1  -- Incrementing ID for cursor-based fetching
+
+-- Ensure __Bakable ModuleScript exists in ReplicatedStorage
+-- This serves as our persistent global namespace (like _G but scoped)
+local function ensureBakableModule()
+    local RS = game:GetService("ReplicatedStorage")
+    local moduleScript = RS:FindFirstChild("__Bakable")
+
+    if not moduleScript then
+        moduleScript = Instance.new("ModuleScript")
+        moduleScript.Name = "__Bakable"
+        moduleScript.Source = "return {}"
+        moduleScript.Parent = RS
+        print("[Bakable] Created __Bakable module in ReplicatedStorage")
+    end
+
+    return moduleScript
+end
+
+-- Get the Bakable table (require it once, cache forever)
+local _BakableTable = nil
+local function getBakableTable()
+    if _BakableTable then return _BakableTable end
+    local mod = ensureBakableModule()
+    _BakableTable = _require(mod)
+    return _BakableTable
+end
+
+-- Call on load to ensure module exists
+ensureBakableModule()
 
 -- Initialize log capture
 function Console.init()
@@ -42,7 +74,7 @@ function Console.init()
         Console.addLogEntry(message, messageType)
     end)
 
-    print("[Bakable] Console log capture initialized")
+    print("[Bakable] Console log capture initialized (v2-persist)")
 end
 
 -- Add log entry to history
@@ -219,9 +251,14 @@ function Console.eval(params: any): (boolean, any)
         game = game,
         workspace = workspace,
         script = nil,
+        require = _require,  -- Allow require() for modules
+        Bakable = getBakableTable(),  -- Direct access to __Bakable table
+        pcall = pcall,
+        xpcall = xpcall,
         print = print,
         warn = warn,
         error = error,
+        assert = assert,
         typeof = typeof,
         type = type,
         tostring = tostring,
@@ -231,6 +268,11 @@ function Console.eval(params: any): (boolean, any)
         next = next,
         select = select,
         unpack = unpack,
+        rawget = rawget,
+        rawset = rawset,
+        rawequal = rawequal,
+        setmetatable = setmetatable,
+        getmetatable = getmetatable,
         table = table,
         string = string,
         math = math,

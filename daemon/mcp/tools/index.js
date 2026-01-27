@@ -106,7 +106,14 @@ export async function registerAllTools() {
     registerTool(tool.name, tool.description, tool.inputSchema, tool.handler);
   }
 
-  console.error('[MCP] Essential tools registered (~60 tools, down from 110)');
+  // Asset Organizer - Scan, display, identify, rename assets
+  const assetOrganizerTools = await import('./asset-organizer.js');
+  assetOrganizerTools.setPluginCaller(callPlugin);
+  for (const tool of assetOrganizerTools.tools) {
+    registerTool(tool.name, tool.description, tool.inputSchema, tool.handler);
+  }
+
+  console.error('[MCP] Essential tools registered (~70 tools)');
 
   // ========== REMOVED (use studio.eval instead) ==========
   // studio.instances.* - Use eval: game:FindFirstChild(), :GetDescendants(), etc.

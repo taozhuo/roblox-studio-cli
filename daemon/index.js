@@ -751,7 +751,8 @@ app.post('/devtools/call', async (req, res) => {
   }
 
   try {
-    const result = await callPluginTool(tool, params || {});
+    // Use MCP server's callTool which has all registered tools
+    const result = await callTool(tool, params || {});
     res.json({ success: true, result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
