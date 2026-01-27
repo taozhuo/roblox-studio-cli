@@ -627,6 +627,63 @@ function AssetOrganizer.show(page)
         lightPart.Position = Vector3.new(bboxSize.X, bboxSize.Y, bboxSize.Z) * 0.6 + Vector3.new(4, 6, 4)
         frameCamera(clone, cam)
 
+        -- Add 3D axis gizmo - position in bottom-left of camera view
+        -- Camera is at yaw=35°, pitch=-20°, looking at center
+        local gizmoSize = math.max(bboxSize.X, bboxSize.Y, bboxSize.Z) * 0.2
+        local axisThickness = gizmoSize * 0.1
+
+        -- Get camera's right and up vectors to position gizmo in view
+        local camCF = cam.CFrame
+        local camRight = camCF.RightVector
+        local camUp = camCF.UpVector
+
+        -- Position gizmo in upper-right corner of view (closer to center)
+        local gizmoCenter = camCF.Position + camCF.LookVector * (gizmoSize * 10) + camRight * (gizmoSize * 1.5) + camUp * (gizmoSize * 1.2)
+
+        -- X axis (red) - world +X
+        local xAxis = Instance.new("Part")
+        xAxis.Anchored = true
+        xAxis.CanCollide = false
+        xAxis.Size = Vector3.new(gizmoSize, axisThickness, axisThickness)
+        xAxis.CFrame = CFrame.new(gizmoCenter + Vector3.new(gizmoSize/2, 0, 0))
+        xAxis.Color = Color3.fromRGB(255, 80, 80)
+        xAxis.Material = Enum.Material.Neon
+        xAxis.Parent = world
+
+        -- Y axis (green) - world +Y
+        local yAxis = Instance.new("Part")
+        yAxis.Anchored = true
+        yAxis.CanCollide = false
+        yAxis.Size = Vector3.new(axisThickness, gizmoSize, axisThickness)
+        yAxis.CFrame = CFrame.new(gizmoCenter + Vector3.new(0, gizmoSize/2, 0))
+        yAxis.Color = Color3.fromRGB(80, 255, 80)
+        yAxis.Material = Enum.Material.Neon
+        yAxis.Parent = world
+
+        -- Z axis (blue) - world -Z (toward camera = FRONT)
+        local zAxis = Instance.new("Part")
+        zAxis.Anchored = true
+        zAxis.CanCollide = false
+        zAxis.Size = Vector3.new(axisThickness, axisThickness, gizmoSize)
+        zAxis.CFrame = CFrame.new(gizmoCenter + Vector3.new(0, 0, -gizmoSize/2))
+        zAxis.Color = Color3.fromRGB(80, 150, 255)
+        zAxis.Material = Enum.Material.Neon
+        zAxis.Parent = world
+
+        -- 2D label overlay on viewport for axis legend
+        local legend = Instance.new("TextLabel")
+        legend.BackgroundTransparency = 1
+        legend.Size = UDim2.new(0, 60, 0, 36)
+        legend.Position = UDim2.new(1, -62, 0, 2)
+        legend.Font = Enum.Font.GothamBold
+        legend.TextSize = 10
+        legend.TextXAlignment = Enum.TextXAlignment.Right
+        legend.TextYAlignment = Enum.TextYAlignment.Top
+        legend.RichText = true
+        legend.Text = '<font color="#ff5050">X→</font> <font color="#50ff50">Y↑</font> <font color="#5096ff">-Z●</font>'
+        legend.TextColor3 = Color3.new(1,1,1)
+        legend.Parent = viewport
+
         -- Track for return data
         table.insert(pageAssets, {
             index = asset.index,

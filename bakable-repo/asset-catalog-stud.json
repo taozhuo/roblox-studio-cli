@@ -1,0 +1,577 @@
+{
+  "catalogVersion": "2.0",
+  "generatedAt": "2026-01-18",
+  "description": "Stud style asset catalog for simulator map building - MrB and Oletro packs",
+  "pivotNormalization": "All models normalized to bottom-center pivot for floor placement",
+
+  "packs": {
+    "oletro": {
+      "name": "Oletro's Stud Asset Pack",
+      "path": "Workspace/Oletro's Stud Asset Pack",
+      "assetCount": 23,
+      "categories": {
+        "Trees": {
+          "description": "Nature trees for outdoor environments",
+          "models": [
+            {
+              "name": "Oletro Tree 1",
+              "originalName": "Model",
+              "path": "Workspace/Oletro's Stud Asset Pack/Trees/Model",
+              "size": {"x": 5.0, "y": 12.19, "z": 4.15},
+              "footprint": {"x": 5.0, "z": 4.15},
+              "type": "small_tree",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Oletro Tree 2",
+              "originalName": "Model",
+              "path": "Workspace/Oletro's Stud Asset Pack/Trees/Model",
+              "size": {"x": 11.0, "y": 18.2, "z": 11.5},
+              "footprint": {"x": 11.0, "z": 11.5},
+              "type": "large_tree",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Grass": {
+          "description": "Grass patches for terrain decoration",
+          "models": [
+            {
+              "name": "grass 1",
+              "path": "Workspace/Oletro's Stud Asset Pack/Grass/grass 1",
+              "size": {"x": 2.0, "y": 2.0, "z": 1.5},
+              "footprint": {"x": 2.0, "z": 1.5},
+              "type": "ground_cover",
+              "pivotNormalized": true
+            },
+            {
+              "name": "grass 2",
+              "path": "Workspace/Oletro's Stud Asset Pack/Grass/grass 2",
+              "size": {"x": 3.5, "y": 1.99, "z": 3.5},
+              "footprint": {"x": 3.5, "z": 3.5},
+              "type": "ground_cover",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Grass 3",
+              "path": "Workspace/Oletro's Stud Asset Pack/Grass/Grass 3",
+              "size": {"x": 2.0, "y": 2.5, "z": 2.5},
+              "footprint": {"x": 2.0, "z": 2.5},
+              "type": "ground_cover",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Flowers": {
+          "description": "Small flower decorations",
+          "models": [
+            {
+              "name": "Flowers",
+              "path": "Workspace/Oletro's Stud Asset Pack/Flowers/Flowers",
+              "size": {"x": 0.99, "y": 1.06, "z": 0.99},
+              "footprint": {"x": 0.99, "z": 0.99},
+              "type": "small_decoration",
+              "variants": 3,
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Dirt": {
+          "description": "Dirt pile terrain pieces",
+          "models": [
+            {
+              "name": "Dirt Pile",
+              "path": "Workspace/Oletro's Stud Asset Pack/Dirt/Dirt Pile",
+              "size": {"x": 3.0, "y": 1.49, "z": 3.0},
+              "footprint": {"x": 3.0, "z": 3.0},
+              "type": "terrain",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Dirt Pile 2",
+              "path": "Workspace/Oletro's Stud Asset Pack/Dirt/Dirt Pile 2",
+              "size": {"x": 4.0, "y": 1.49, "z": 3.5},
+              "footprint": {"x": 4.0, "z": 3.5},
+              "type": "terrain",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Rocks": {
+          "description": "Rock formations of various sizes",
+          "models": [
+            {
+              "name": "Rock1",
+              "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Rock1",
+              "size": {"x": 5.0, "y": 2.0, "z": 3.5},
+              "footprint": {"x": 5.0, "z": 3.5},
+              "type": "medium_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Big Rock",
+              "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Big Rock",
+              "size": {"x": 7.0, "y": 5.0, "z": 6.5},
+              "footprint": {"x": 7.0, "z": 6.5},
+              "type": "large_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Rock 2",
+              "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Rock 2",
+              "size": {"x": 5.5, "y": 2.0, "z": 3.5},
+              "footprint": {"x": 5.5, "z": 3.5},
+              "type": "medium_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Pebble 1",
+              "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Pebbles/Pebble 1",
+              "size": {"x": 3.5, "y": 1.0, "z": 3.5},
+              "footprint": {"x": 3.5, "z": 3.5},
+              "type": "small_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Pebble 2",
+              "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Pebbles/Pebble 2",
+              "size": {"x": 3.0, "y": 1.5, "z": 3.5},
+              "footprint": {"x": 3.0, "z": 3.5},
+              "type": "small_rock",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Logs": {
+          "description": "Wooden logs for nature environments",
+          "models": [
+            {
+              "name": "Normal log",
+              "path": "Workspace/Oletro's Stud Asset Pack/Logs/Normal log",
+              "size": {"x": 7.5, "y": 1.5, "z": 1.8},
+              "footprint": {"x": 7.5, "z": 1.8},
+              "type": "prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Log with seat",
+              "path": "Workspace/Oletro's Stud Asset Pack/Logs/Log with seat",
+              "size": {"x": 7.5, "y": 2.23, "z": 1.8},
+              "footprint": {"x": 7.5, "z": 1.8},
+              "type": "seating",
+              "hasSeat": true,
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Props": {
+          "description": "Camping and outdoor props",
+          "models": [
+            {
+              "name": "Campfire",
+              "path": "Workspace/Oletro's Stud Asset Pack/Props/Campfire",
+              "size": {"x": 3.75, "y": 1.76, "z": 3.75},
+              "footprint": {"x": 3.75, "z": 3.75},
+              "type": "interactive_prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "basket",
+              "path": "Workspace/Oletro's Stud Asset Pack/Props/basket",
+              "size": {"x": 1.8, "y": 1.26, "z": 1.98},
+              "footprint": {"x": 1.8, "z": 1.98},
+              "type": "small_prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Cup 1",
+              "path": "Workspace/Oletro's Stud Asset Pack/Props/Cup 1",
+              "size": {"x": 0.85, "y": 2.0, "z": 0.85},
+              "footprint": {"x": 0.85, "z": 0.85},
+              "type": "small_prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Cup 2",
+              "path": "Workspace/Oletro's Stud Asset Pack/Props/Cup 2",
+              "size": {"x": 0.85, "y": 2.0, "z": 0.85},
+              "footprint": {"x": 0.85, "z": 0.85},
+              "type": "small_prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Blanket",
+              "path": "Workspace/Oletro's Stud Asset Pack/Props/Blanket",
+              "size": {"x": 10.0, "y": 0.5, "z": 10.0},
+              "footprint": {"x": 10.0, "z": 10.0},
+              "type": "ground_cover",
+              "pivotNormalized": true
+            }
+          ]
+        }
+      }
+    },
+
+    "mrb": {
+      "name": "MrB's Stud Asset pack",
+      "path": "Workspace/MrB's Stud Asset pack",
+      "assetCount": 25,
+      "categories": {
+        "Trees": {
+          "description": "Various tree types including deciduous, palm, and pine",
+          "models": [
+            {
+              "name": "Tree",
+              "path": "Workspace/MrB's Stud Asset pack/Trees/Tree",
+              "size": {"x": 18.49, "y": 19.49, "z": 17.04},
+              "footprint": {"x": 18.49, "z": 17.04},
+              "type": "large_tree",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Palm Tree",
+              "path": "Workspace/MrB's Stud Asset pack/Trees/Palm Tree",
+              "size": {"x": 20.25, "y": 22.52, "z": 20.04},
+              "footprint": {"x": 20.25, "z": 20.04},
+              "type": "palm_tree",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Pine Tree",
+              "path": "Workspace/MrB's Stud Asset pack/Trees/Pine Tree",
+              "size": {"x": 18.03, "y": 22.53, "z": 17.57},
+              "footprint": {"x": 18.03, "z": 17.57},
+              "type": "pine_tree",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Bushes": {
+          "description": "Bush decorations for landscaping",
+          "models": [
+            {
+              "name": "Large bush",
+              "path": "Workspace/MrB's Stud Asset pack/Bushes/Large bush",
+              "size": {"x": 6.25, "y": 4.5, "z": 6.0},
+              "footprint": {"x": 6.25, "z": 6.0},
+              "type": "large_bush",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Medium Bush",
+              "path": "Workspace/MrB's Stud Asset pack/Bushes/Medium Bush",
+              "size": {"x": 3.66, "y": 2.33, "z": 3.99},
+              "footprint": {"x": 3.66, "z": 3.99},
+              "type": "medium_bush",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Rocks": {
+          "description": "Rock formations in three sizes",
+          "models": [
+            {
+              "name": "Large Rock",
+              "path": "Workspace/MrB's Stud Asset pack/Rocks/Large Rock",
+              "size": {"x": 5.5, "y": 5.0, "z": 8.5},
+              "footprint": {"x": 5.5, "z": 8.5},
+              "type": "large_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Medium Rock",
+              "path": "Workspace/MrB's Stud Asset pack/Rocks/Medium Rock",
+              "size": {"x": 5.0, "y": 2.95, "z": 5.94},
+              "footprint": {"x": 5.0, "z": 5.94},
+              "type": "medium_rock",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Small Rock",
+              "path": "Workspace/MrB's Stud Asset pack/Rocks/Small Rock",
+              "size": {"x": 2.51, "y": 1.94, "z": 3.47},
+              "footprint": {"x": 2.51, "z": 3.47},
+              "type": "small_rock",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Plants": {
+          "description": "Potted plants and mushrooms",
+          "models": [
+            {
+              "name": "Plant",
+              "path": "Workspace/MrB's Stud Asset pack/Plants/Plant",
+              "size": {"x": 5.04, "y": 6.5, "z": 5.94},
+              "footprint": {"x": 5.04, "z": 5.94},
+              "type": "potted_plant",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Mushroom",
+              "path": "Workspace/MrB's Stud Asset pack/Plants/Mushromm",
+              "size": {"x": 2.79, "y": 3.37, "z": 2.78},
+              "footprint": {"x": 2.79, "z": 2.78},
+              "type": "mushroom",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Cactus": {
+          "description": "Desert cactus plants",
+          "models": [
+            {
+              "name": "Cactus",
+              "path": "Workspace/MrB's Stud Asset pack/Cactus/Cactus",
+              "size": {"x": 2.0, "y": 11.0, "z": 8.0},
+              "footprint": {"x": 2.0, "z": 8.0},
+              "type": "cactus",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Cactus Flower",
+              "path": "Workspace/MrB's Stud Asset pack/Cactus/Cactus Flower",
+              "size": {"x": 3.95, "y": 11.75, "z": 8.24},
+              "footprint": {"x": 3.95, "z": 8.24},
+              "type": "cactus",
+              "hasFlower": true,
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Street Lights": {
+          "description": "Lamp posts for paths and streets",
+          "models": [
+            {
+              "name": "Street Light 1",
+              "path": "Workspace/MrB's Stud Asset pack/Street Lights/Street Light 1",
+              "size": {"x": 2.0, "y": 15.75, "z": 9.0},
+              "footprint": {"x": 2.0, "z": 9.0},
+              "type": "street_light",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Street Light 2",
+              "path": "Workspace/MrB's Stud Asset pack/Street Lights/Street Light 2",
+              "size": {"x": 14.76, "y": 14.12, "z": 2.0},
+              "footprint": {"x": 14.76, "z": 2.0},
+              "type": "street_light",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Picnic - Park": {
+          "description": "Park furniture and picnic items",
+          "models": [
+            {
+              "name": "Bench",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Bench",
+              "size": {"x": 2.71, "y": 4.02, "z": 6.5},
+              "footprint": {"x": 2.71, "z": 6.5},
+              "type": "seating",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Park Bench",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Park Bench",
+              "size": {"x": 8.7, "y": 4.58, "z": 12.0},
+              "footprint": {"x": 8.7, "z": 12.0},
+              "type": "seating",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Trash Bin",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Trash Bin",
+              "size": {"x": 2.0, "y": 4.19, "z": 2.0},
+              "footprint": {"x": 2.0, "z": 2.0},
+              "type": "utility",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Picnic Carpet",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Picnic Carpet",
+              "size": {"x": 14.0, "y": 0.5, "z": 14.0},
+              "footprint": {"x": 14.0, "z": 14.0},
+              "type": "ground_cover",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Log",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Log",
+              "size": {"x": 10.5, "y": 2.0, "z": 2.0},
+              "footprint": {"x": 10.5, "z": 2.0},
+              "type": "prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Fence",
+              "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Fence",
+              "size": {"x": 1.0, "y": 4.5, "z": 12.0},
+              "footprint": {"x": 1.0, "z": 12.0},
+              "type": "fence",
+              "pivotNormalized": true
+            }
+          ]
+        },
+        "Other": {
+          "description": "Miscellaneous props and structures",
+          "models": [
+            {
+              "name": "Box",
+              "path": "Workspace/MrB's Stud Asset pack/Other/Box",
+              "size": {"x": 5.0, "y": 5.0, "z": 5.0},
+              "footprint": {"x": 5.0, "z": 5.0},
+              "type": "prop",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Shop",
+              "path": "Workspace/MrB's Stud Asset pack/Other/Shop",
+              "size": {"x": 9.19, "y": 11.64, "z": 12.0},
+              "footprint": {"x": 9.19, "z": 12.0},
+              "type": "building",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Small Sign",
+              "path": "Workspace/MrB's Stud Asset pack/Other/Small Sign",
+              "size": {"x": 5.49, "y": 4.5, "z": 0.99},
+              "footprint": {"x": 5.49, "z": 0.99},
+              "type": "signage",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Big Sign",
+              "path": "Workspace/MrB's Stud Asset pack/Other/Big Sign",
+              "size": {"x": 5.49, "y": 5.5, "z": 0.99},
+              "footprint": {"x": 5.49, "z": 0.99},
+              "type": "signage",
+              "pivotNormalized": true
+            },
+            {
+              "name": "Car",
+              "path": "Workspace/MrB's Stud Asset pack/Other/Car",
+              "size": {"x": 19.82, "y": 10.52, "z": 8.5},
+              "footprint": {"x": 19.82, "z": 8.5},
+              "type": "vehicle",
+              "pivotNormalized": true
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  "quickReference": {
+    "trees": {
+      "small": [
+        {"name": "Oletro Tree 1", "pack": "oletro", "footprint": [5.0, 4.15], "height": 12.19}
+      ],
+      "medium": [
+        {"name": "Oletro Tree 2", "pack": "oletro", "footprint": [11.0, 11.5], "height": 18.2}
+      ],
+      "large": [
+        {"name": "Tree", "pack": "mrb", "footprint": [18.49, 17.04], "height": 19.49},
+        {"name": "Pine Tree", "pack": "mrb", "footprint": [18.03, 17.57], "height": 22.53},
+        {"name": "Palm Tree", "pack": "mrb", "footprint": [20.25, 20.04], "height": 22.52}
+      ]
+    },
+    "rocks": {
+      "small": [
+        {"name": "Pebble 1", "pack": "oletro", "footprint": [3.5, 3.5], "height": 1.0},
+        {"name": "Pebble 2", "pack": "oletro", "footprint": [3.0, 3.5], "height": 1.5},
+        {"name": "Small Rock", "pack": "mrb", "footprint": [2.51, 3.47], "height": 1.94}
+      ],
+      "medium": [
+        {"name": "Rock1", "pack": "oletro", "footprint": [5.0, 3.5], "height": 2.0},
+        {"name": "Rock 2", "pack": "oletro", "footprint": [5.5, 3.5], "height": 2.0},
+        {"name": "Medium Rock", "pack": "mrb", "footprint": [5.0, 5.94], "height": 2.95}
+      ],
+      "large": [
+        {"name": "Big Rock", "pack": "oletro", "footprint": [7.0, 6.5], "height": 5.0},
+        {"name": "Large Rock", "pack": "mrb", "footprint": [5.5, 8.5], "height": 5.0}
+      ]
+    },
+    "vegetation": {
+      "grass": [
+        {"name": "grass 1", "pack": "oletro", "footprint": [2.0, 1.5], "height": 2.0},
+        {"name": "grass 2", "pack": "oletro", "footprint": [3.5, 3.5], "height": 1.99},
+        {"name": "Grass 3", "pack": "oletro", "footprint": [2.0, 2.5], "height": 2.5}
+      ],
+      "flowers": [
+        {"name": "Flowers", "pack": "oletro", "footprint": [0.99, 0.99], "height": 1.06, "variants": 3}
+      ],
+      "bushes": [
+        {"name": "Medium Bush", "pack": "mrb", "footprint": [3.66, 3.99], "height": 2.33},
+        {"name": "Large bush", "pack": "mrb", "footprint": [6.25, 6.0], "height": 4.5}
+      ],
+      "plants": [
+        {"name": "Plant", "pack": "mrb", "footprint": [5.04, 5.94], "height": 6.5},
+        {"name": "Mushroom", "pack": "mrb", "footprint": [2.79, 2.78], "height": 3.37}
+      ],
+      "cactus": [
+        {"name": "Cactus", "pack": "mrb", "footprint": [2.0, 8.0], "height": 11.0},
+        {"name": "Cactus Flower", "pack": "mrb", "footprint": [3.95, 8.24], "height": 11.75}
+      ]
+    },
+    "terrain": {
+      "dirt": [
+        {"name": "Dirt Pile", "pack": "oletro", "footprint": [3.0, 3.0], "height": 1.49},
+        {"name": "Dirt Pile 2", "pack": "oletro", "footprint": [4.0, 3.5], "height": 1.49}
+      ]
+    },
+    "props": {
+      "logs": [
+        {"name": "Normal log", "pack": "oletro", "footprint": [7.5, 1.8], "height": 1.5},
+        {"name": "Log with seat", "pack": "oletro", "footprint": [7.5, 1.8], "height": 2.23},
+        {"name": "Log", "pack": "mrb", "footprint": [10.5, 2.0], "height": 2.0}
+      ],
+      "camping": [
+        {"name": "Campfire", "pack": "oletro", "footprint": [3.75, 3.75], "height": 1.76},
+        {"name": "basket", "pack": "oletro", "footprint": [1.8, 1.98], "height": 1.26},
+        {"name": "Cup 1", "pack": "oletro", "footprint": [0.85, 0.85], "height": 2.0},
+        {"name": "Cup 2", "pack": "oletro", "footprint": [0.85, 0.85], "height": 2.0}
+      ],
+      "ground_covers": [
+        {"name": "Blanket", "pack": "oletro", "footprint": [10.0, 10.0], "height": 0.5},
+        {"name": "Picnic Carpet", "pack": "mrb", "footprint": [14.0, 14.0], "height": 0.5}
+      ]
+    },
+    "furniture": {
+      "seating": [
+        {"name": "Bench", "pack": "mrb", "footprint": [2.71, 6.5], "height": 4.02},
+        {"name": "Park Bench", "pack": "mrb", "footprint": [8.7, 12.0], "height": 4.58}
+      ],
+      "utility": [
+        {"name": "Trash Bin", "pack": "mrb", "footprint": [2.0, 2.0], "height": 4.19},
+        {"name": "Box", "pack": "mrb", "footprint": [5.0, 5.0], "height": 5.0}
+      ]
+    },
+    "lighting": [
+      {"name": "Street Light 1", "pack": "mrb", "footprint": [2.0, 9.0], "height": 15.75},
+      {"name": "Street Light 2", "pack": "mrb", "footprint": [14.76, 2.0], "height": 14.12}
+    ],
+    "structures": {
+      "fences": [
+        {"name": "Fence", "pack": "mrb", "footprint": [1.0, 12.0], "height": 4.5}
+      ],
+      "buildings": [
+        {"name": "Shop", "pack": "mrb", "footprint": [9.19, 12.0], "height": 11.64}
+      ],
+      "signage": [
+        {"name": "Small Sign", "pack": "mrb", "footprint": [5.49, 0.99], "height": 4.5},
+        {"name": "Big Sign", "pack": "mrb", "footprint": [5.49, 0.99], "height": 5.5}
+      ]
+    },
+    "vehicles": [
+      {"name": "Car", "pack": "mrb", "footprint": [19.82, 8.5], "height": 10.52}
+    ]
+  },
+
+  "usageNotes": {
+    "placement": "All models have pivots normalized to bottom-center. Use model:PivotTo(CFrame.new(x, 0, z)) to place on ground level Y=0.",
+    "spacing": "Use footprint values to calculate minimum spacing between objects to avoid overlaps.",
+    "layering": "Grass and flowers can be layered on terrain. Place larger trees first, then fill with smaller vegetation.",
+    "paths": "Street Lights and Fences work well along paths. Space Street Lights 30-50 studs apart."
+  }
+}

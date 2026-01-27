@@ -1,0 +1,721 @@
+{
+  "catalogVersion": "2.0",
+  "generatedAt": "2026-01-18",
+  "totalModels": 61,
+  "assetPacks": [
+    {
+      "name": "Oletro's Stud Asset Pack",
+      "basePath": "Workspace/Oletro's Stud Asset Pack",
+      "models": [
+        {
+          "name": "Rock1",
+          "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Rock1",
+          "category": "Rocks",
+          "size": {"x": 5, "y": 2, "z": 3.5},
+          "footprint": {"x": 5, "z": 3.5},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Path borders, garden accents"
+        },
+        {
+          "name": "Big Rock",
+          "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Big Rock",
+          "category": "Rocks",
+          "size": {"x": 7, "y": 5, "z": 6.5},
+          "footprint": {"x": 7, "z": 6.5},
+          "groundOffset": 2.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 10,
+          "farmUse": "Focal points, terrain features"
+        },
+        {
+          "name": "Rock 2",
+          "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Rock 2",
+          "category": "Rocks",
+          "size": {"x": 5.5, "y": 2, "z": 3.5},
+          "footprint": {"x": 5.5, "z": 3.5},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Path borders, scattered decoration"
+        },
+        {
+          "name": "Pebble 1",
+          "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Pebbles/Pebble 1",
+          "category": "Rocks",
+          "size": {"x": 3.5, "y": 1, "z": 3.5},
+          "footprint": {"x": 3.5, "z": 3.5},
+          "groundOffset": 0.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Path edges, small scatter"
+        },
+        {
+          "name": "Pebble 2",
+          "path": "Workspace/Oletro's Stud Asset Pack/Rocks/Pebbles/Pebble 2",
+          "category": "Rocks",
+          "size": {"x": 3, "y": 1.5, "z": 3.5},
+          "footprint": {"x": 3, "z": 3.5},
+          "groundOffset": 0.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Path edges, ground detail"
+        },
+        {
+          "name": "Normal log",
+          "path": "Workspace/Oletro's Stud Asset Pack/Logs/Normal log",
+          "category": "Logs",
+          "size": {"x": 7.5, "y": 1.5, "z": 1.8},
+          "footprint": {"x": 7.5, "z": 1.8},
+          "groundOffset": 0.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "farmUse": "Ground decoration, rustic feel"
+        },
+        {
+          "name": "Log with seat",
+          "path": "Workspace/Oletro's Stud Asset Pack/Logs/Log with seat",
+          "category": "Logs",
+          "size": {"x": 7.5, "y": 2.23, "z": 1.8},
+          "footprint": {"x": 7.5, "z": 1.8},
+          "groundOffset": 1.12,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "hasSeat": true,
+          "farmUse": "Rest areas, seating"
+        },
+        {
+          "name": "Campfire",
+          "path": "Workspace/Oletro's Stud Asset Pack/Props/Campfire",
+          "category": "Props",
+          "size": {"x": 3.75, "y": 1.77, "z": 3.75},
+          "footprint": {"x": 3.75, "z": 3.75},
+          "groundOffset": 0.89,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 8,
+          "farmUse": "Rest areas, outdoor gathering"
+        },
+        {
+          "name": "basket",
+          "path": "Workspace/Oletro's Stud Asset Pack/Props/basket",
+          "category": "Props",
+          "size": {"x": 1.81, "y": 1.27, "z": 1.99},
+          "footprint": {"x": 1.81, "z": 1.99},
+          "groundOffset": 0.64,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 2,
+          "farmUse": "Market displays, harvest props"
+        },
+        {
+          "name": "Cup 1",
+          "path": "Workspace/Oletro's Stud Asset Pack/Props/Cup 1",
+          "category": "Props",
+          "size": {"x": 0.86, "y": 2, "z": 0.86},
+          "footprint": {"x": 0.86, "z": 0.86},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 1,
+          "farmUse": "Table decoration"
+        },
+        {
+          "name": "Cup 2",
+          "path": "Workspace/Oletro's Stud Asset Pack/Props/Cup 2",
+          "category": "Props",
+          "size": {"x": 0.86, "y": 2, "z": 0.86},
+          "footprint": {"x": 0.86, "z": 0.86},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 1,
+          "farmUse": "Table decoration"
+        },
+        {
+          "name": "Blanket",
+          "path": "Workspace/Oletro's Stud Asset Pack/Props/Blanket",
+          "category": "Props",
+          "size": {"x": 10, "y": 0.5, "z": 10},
+          "footprint": {"x": 10, "z": 10},
+          "groundOffset": 0.25,
+          "pivotAtBottom": true,
+          "recommendedSpacing": 12,
+          "farmUse": "Picnic areas, market displays"
+        },
+        {
+          "name": "Oletro Tree 1 (Small)",
+          "path": "Workspace/Oletro's Stud Asset Pack/Trees/Model",
+          "category": "Trees",
+          "size": {"x": 5, "y": 12.17, "z": 4},
+          "footprint": {"x": 5, "z": 4},
+          "groundOffset": 6.09,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 8,
+          "farmUse": "Small decorative trees, young orchard"
+        },
+        {
+          "name": "Oletro Tree 2 (Large)",
+          "path": "Workspace/Oletro's Stud Asset Pack/Trees/Model",
+          "category": "Trees",
+          "size": {"x": 11, "y": 18.21, "z": 11.5},
+          "footprint": {"x": 11, "z": 11.5},
+          "groundOffset": 9.11,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 15,
+          "farmUse": "Main shade trees, focal points"
+        },
+        {
+          "name": "grass 1",
+          "path": "Workspace/Oletro's Stud Asset Pack/Grass/grass 1",
+          "category": "Grass",
+          "size": {"x": 2, "y": 2, "z": 1.5},
+          "footprint": {"x": 2, "z": 1.5},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 2,
+          "farmUse": "Ground detail, field edges"
+        },
+        {
+          "name": "grass 2",
+          "path": "Workspace/Oletro's Stud Asset Pack/Grass/grass 2",
+          "category": "Grass",
+          "size": {"x": 3.5, "y": 2, "z": 3.5},
+          "footprint": {"x": 3.5, "z": 3.5},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Larger grass patches"
+        },
+        {
+          "name": "Grass 3",
+          "path": "Workspace/Oletro's Stud Asset Pack/Grass/Grass 3",
+          "category": "Grass",
+          "size": {"x": 2, "y": 2.5, "z": 2.5},
+          "footprint": {"x": 2, "z": 2.5},
+          "groundOffset": 1.25,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 2.5,
+          "farmUse": "Tall grass accents"
+        },
+        {
+          "name": "Flowers",
+          "path": "Workspace/Oletro's Stud Asset Pack/Flowers/Flowers",
+          "category": "Flowers",
+          "size": {"x": 1, "y": 1.07, "z": 1},
+          "footprint": {"x": 1, "z": 1},
+          "groundOffset": 0.54,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 1.5,
+          "farmUse": "Flower beds, garden borders",
+          "note": "Multiple flower models available with same dimensions"
+        },
+        {
+          "name": "Dirt Pile",
+          "path": "Workspace/Oletro's Stud Asset Pack/Dirt/Dirt Pile",
+          "category": "Dirt",
+          "size": {"x": 3, "y": 1.5, "z": 3},
+          "footprint": {"x": 3, "z": 3},
+          "groundOffset": 0.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "farmUse": "Farm fields, plowed areas"
+        },
+        {
+          "name": "Dirt Pile 2",
+          "path": "Workspace/Oletro's Stud Asset Pack/Dirt/Dirt Pile 2",
+          "category": "Dirt",
+          "size": {"x": 4, "y": 1.5, "z": 3.5},
+          "footprint": {"x": 4, "z": 3.5},
+          "groundOffset": 0.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Farm fields, larger dirt areas"
+        }
+      ]
+    },
+    {
+      "name": "MrB's Stud Asset pack",
+      "basePath": "Workspace/MrB's Stud Asset pack",
+      "models": [
+        {
+          "name": "Tree",
+          "path": "Workspace/MrB's Stud Asset pack/Trees/Tree",
+          "category": "Trees",
+          "size": {"x": 12.5, "y": 19.4, "z": 17.6},
+          "footprint": {"x": 12.5, "z": 17.6},
+          "groundOffset": 9.7,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 20,
+          "farmUse": "Shade trees, orchard trees"
+        },
+        {
+          "name": "Palm Tree",
+          "path": "Workspace/MrB's Stud Asset pack/Trees/Palm Tree",
+          "category": "Trees",
+          "size": {"x": 19.66, "y": 20.64, "z": 20.63},
+          "footprint": {"x": 19.66, "z": 20.63},
+          "groundOffset": 10.32,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 25,
+          "farmUse": "Tropical areas, entrance decor"
+        },
+        {
+          "name": "Pine Tree",
+          "path": "Workspace/MrB's Stud Asset pack/Trees/Pine Tree",
+          "category": "Trees",
+          "size": {"x": 17.86, "y": 21.57, "z": 20.7},
+          "footprint": {"x": 17.86, "z": 20.7},
+          "groundOffset": 10.79,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 22,
+          "farmUse": "Forest areas, windbreaks"
+        },
+        {
+          "name": "Bench",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Bench",
+          "category": "Furniture",
+          "size": {"x": 2.98, "y": 4.35, "z": 6.5},
+          "footprint": {"x": 2.98, "z": 6.5},
+          "groundOffset": 2.17,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 8,
+          "farmUse": "Rest areas, market seating"
+        },
+        {
+          "name": "Trash Bin",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Trash Bin",
+          "category": "Props",
+          "size": {"x": 2, "y": 4.2, "z": 2},
+          "footprint": {"x": 2, "z": 2},
+          "groundOffset": 2.1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 20,
+          "farmUse": "Near paths, market areas"
+        },
+        {
+          "name": "Picnic Carpet",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Picnic Carpet",
+          "category": "Props",
+          "size": {"x": 14, "y": 0.5, "z": 14},
+          "footprint": {"x": 14, "z": 14},
+          "groundOffset": 0.25,
+          "pivotAtBottom": true,
+          "recommendedSpacing": 16,
+          "farmUse": "Picnic areas, rest zones"
+        },
+        {
+          "name": "Park Bench",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Park Bench",
+          "category": "Furniture",
+          "size": {"x": 8.7, "y": 4.58, "z": 12},
+          "footprint": {"x": 8.7, "z": 12},
+          "groundOffset": 2.29,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 15,
+          "farmUse": "Large seating, picnic areas"
+        },
+        {
+          "name": "Log",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Log",
+          "category": "Logs",
+          "size": {"x": 10.5, "y": 2, "z": 2},
+          "footprint": {"x": 10.5, "z": 2},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Seating, decoration, barriers"
+        },
+        {
+          "name": "Fence",
+          "path": "Workspace/MrB's Stud Asset pack/Picnic - Park/Fence",
+          "category": "Structures",
+          "size": {"x": 1, "y": 4.5, "z": 12},
+          "footprint": {"x": 1, "z": 12},
+          "groundOffset": 2.25,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 0,
+          "tileable": true,
+          "farmUse": "Farm boundaries, animal pens"
+        },
+        {
+          "name": "Large bush",
+          "path": "Workspace/MrB's Stud Asset pack/Bushes/Large bush",
+          "category": "Bushes",
+          "size": {"x": 6.25, "y": 4.5, "z": 6},
+          "footprint": {"x": 6.25, "z": 6},
+          "groundOffset": 2.25,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 6,
+          "farmUse": "Hedges, borders, hiding fences"
+        },
+        {
+          "name": "Medium Bush",
+          "path": "Workspace/MrB's Stud Asset pack/Bushes/Medium Bush",
+          "category": "Bushes",
+          "size": {"x": 3.67, "y": 2.33, "z": 4},
+          "footprint": {"x": 3.67, "z": 4},
+          "groundOffset": 1.17,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "farmUse": "Low hedges, garden borders"
+        },
+        {
+          "name": "Box",
+          "path": "Workspace/MrB's Stud Asset pack/Other/Box",
+          "category": "Props",
+          "size": {"x": 7.04, "y": 7.04, "z": 5},
+          "footprint": {"x": 7.04, "z": 5},
+          "groundOffset": 3.52,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Storage, market crates"
+        },
+        {
+          "name": "Shop",
+          "path": "Workspace/MrB's Stud Asset pack/Other/Shop",
+          "category": "Buildings",
+          "size": {"x": 9.2, "y": 11.64, "z": 12},
+          "footprint": {"x": 9.2, "z": 12},
+          "groundOffset": 5.82,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 15,
+          "farmUse": "Market stalls, vendor booths"
+        },
+        {
+          "name": "Small Sign",
+          "path": "Workspace/MrB's Stud Asset pack/Other/Small Sign",
+          "category": "Props",
+          "size": {"x": 5.5, "y": 4.5, "z": 1},
+          "footprint": {"x": 5.5, "z": 1},
+          "groundOffset": 2.25,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 15,
+          "farmUse": "Direction signs, labels"
+        },
+        {
+          "name": "Big Sign",
+          "path": "Workspace/MrB's Stud Asset pack/Other/Big Sign",
+          "category": "Props",
+          "size": {"x": 5.5, "y": 5.5, "z": 1},
+          "footprint": {"x": 5.5, "z": 1},
+          "groundOffset": 2.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 20,
+          "farmUse": "Area markers, entrance signs"
+        },
+        {
+          "name": "Car",
+          "path": "Workspace/MrB's Stud Asset pack/Other/Car",
+          "category": "Vehicles",
+          "size": {"x": 20.5, "y": 7.09, "z": 8.5},
+          "footprint": {"x": 20.5, "z": 8.5},
+          "groundOffset": 3.55,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 25,
+          "farmUse": "Parking areas, delivery vehicles"
+        },
+        {
+          "name": "Large Rock",
+          "path": "Workspace/MrB's Stud Asset pack/Rocks/Large Rock",
+          "category": "Rocks",
+          "size": {"x": 5.5, "y": 5, "z": 8.5},
+          "footprint": {"x": 5.5, "z": 8.5},
+          "groundOffset": 2.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 10,
+          "farmUse": "Focal points, terrain features"
+        },
+        {
+          "name": "Medium Rock",
+          "path": "Workspace/MrB's Stud Asset pack/Rocks/Medium Rock",
+          "category": "Rocks",
+          "size": {"x": 5, "y": 2.95, "z": 5.95},
+          "footprint": {"x": 5, "z": 5.95},
+          "groundOffset": 1.48,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 6,
+          "farmUse": "Path borders, garden accents"
+        },
+        {
+          "name": "Small Rock",
+          "path": "Workspace/MrB's Stud Asset pack/Rocks/Small Rock",
+          "category": "Rocks",
+          "size": {"x": 2.51, "y": 1.95, "z": 3.47},
+          "footprint": {"x": 2.51, "z": 3.47},
+          "groundOffset": 0.98,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Ground detail, scattered rocks"
+        },
+        {
+          "name": "Street Light 1",
+          "path": "Workspace/MrB's Stud Asset pack/Street Lights/Street Light 1",
+          "category": "Lighting",
+          "size": {"x": 2, "y": 15.75, "z": 9},
+          "footprint": {"x": 2, "z": 9},
+          "groundOffset": 7.88,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 30,
+          "farmUse": "Main paths, market areas"
+        },
+        {
+          "name": "Street Light 2",
+          "path": "Workspace/MrB's Stud Asset pack/Street Lights/Street Light 2",
+          "category": "Lighting",
+          "size": {"x": 14.77, "y": 14.12, "z": 2},
+          "footprint": {"x": 14.77, "z": 2},
+          "groundOffset": 7.06,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 35,
+          "farmUse": "Wide paths, plazas"
+        },
+        {
+          "name": "Plant",
+          "path": "Workspace/MrB's Stud Asset pack/Plants/Plant",
+          "category": "Plants",
+          "size": {"x": 4.47, "y": 6.12, "z": 6.32},
+          "footprint": {"x": 4.47, "z": 6.32},
+          "groundOffset": 3.06,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Decorative plants, garden areas"
+        },
+        {
+          "name": "Mushroom",
+          "path": "Workspace/MrB's Stud Asset pack/Plants/Mushromm",
+          "category": "Plants",
+          "size": {"x": 2.8, "y": 3.38, "z": 2.78},
+          "footprint": {"x": 2.8, "z": 2.78},
+          "groundOffset": 1.69,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Forest floor, shaded areas"
+        },
+        {
+          "name": "Cactus",
+          "path": "Workspace/MrB's Stud Asset pack/Cactus/Cactus",
+          "category": "Cactus",
+          "size": {"x": 2, "y": 11, "z": 8},
+          "footprint": {"x": 2, "z": 8},
+          "groundOffset": 5.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 6,
+          "farmUse": "Desert areas, dry farm sections"
+        },
+        {
+          "name": "Cactus Flower",
+          "path": "Workspace/MrB's Stud Asset pack/Cactus/Cactus Flower",
+          "category": "Cactus",
+          "size": {"x": 3.96, "y": 11.76, "z": 8.24},
+          "footprint": {"x": 3.96, "z": 8.24},
+          "groundOffset": 5.88,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 6,
+          "farmUse": "Desert areas with color accent"
+        },
+        {
+          "name": "Table",
+          "path": "Workspace/MrB's Stud Asset pack/Dinning Room/Table",
+          "category": "Furniture",
+          "size": {"x": 15, "y": 3.5, "z": 8},
+          "footprint": {"x": 15, "z": 8},
+          "groundOffset": 1.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 10,
+          "farmUse": "Market stall tables, dining"
+        },
+        {
+          "name": "Chair",
+          "path": "Workspace/MrB's Stud Asset pack/Dinning Room/Chair",
+          "category": "Furniture",
+          "size": {"x": 2.5, "y": 5.5, "z": 2.5},
+          "footprint": {"x": 2.5, "z": 2.5},
+          "groundOffset": 2.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Seating at tables"
+        },
+        {
+          "name": "Sofa",
+          "path": "Workspace/MrB's Stud Asset pack/Living Room/Sofa",
+          "category": "Furniture",
+          "size": {"x": 4, "y": 4.03, "z": 13},
+          "footprint": {"x": 4, "z": 13},
+          "groundOffset": 2.02,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 8,
+          "farmUse": "Indoor rest areas"
+        },
+        {
+          "name": "Tv Stand",
+          "path": "Workspace/MrB's Stud Asset pack/Living Room/Tv Stand",
+          "category": "Furniture",
+          "size": {"x": 3, "y": 2.5, "z": 8},
+          "footprint": {"x": 3, "z": 8},
+          "groundOffset": 1.25,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Indoor decoration"
+        },
+        {
+          "name": "Old TV",
+          "path": "Workspace/MrB's Stud Asset pack/Living Room/Old TV",
+          "category": "Props",
+          "size": {"x": 3.89, "y": 5.24, "z": 5.18},
+          "footprint": {"x": 3.89, "z": 5.18},
+          "groundOffset": 2.62,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "farmUse": "Indoor decoration"
+        },
+        {
+          "name": "Pickaxe",
+          "path": "Workspace/MrB's Stud Asset pack/Tools/Pickaxe",
+          "category": "Tools",
+          "size": {"x": 4.61, "y": 4.34, "z": 0.5},
+          "footprint": {"x": 4.61, "z": 0.5},
+          "groundOffset": 2.17,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Tool displays, farm decoration"
+        },
+        {
+          "name": "Sword",
+          "path": "Workspace/MrB's Stud Asset pack/Tools/Sword",
+          "category": "Tools",
+          "size": {"x": 0.5, "y": 8.25, "z": 3.04},
+          "footprint": {"x": 0.5, "z": 3.04},
+          "groundOffset": 4.13,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Decoration (less relevant for farm)"
+        },
+        {
+          "name": "Bed",
+          "path": "Workspace/MrB's Stud Asset pack/Bedroom/Bed",
+          "category": "Furniture",
+          "size": {"x": 6, "y": 5, "z": 13},
+          "footprint": {"x": 6, "z": 13},
+          "groundOffset": 2.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 8,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Wardrobe",
+          "path": "Workspace/MrB's Stud Asset pack/Bedroom/Wardrobe",
+          "category": "Furniture",
+          "size": {"x": 3.25, "y": 11.5, "z": 7},
+          "footprint": {"x": 3.25, "z": 7},
+          "groundOffset": 5.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Small Wardrobe",
+          "path": "Workspace/MrB's Stud Asset pack/Bedroom/Small Wardrobe",
+          "category": "Furniture",
+          "size": {"x": 4, "y": 3.5, "z": 4},
+          "footprint": {"x": 4, "z": 4},
+          "groundOffset": 1.75,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 4,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Toilet",
+          "path": "Workspace/MrB's Stud Asset pack/Bathroom/Toilet",
+          "category": "Bathroom",
+          "size": {"x": 2.3, "y": 4, "z": 3},
+          "footprint": {"x": 2.3, "z": 3},
+          "groundOffset": 2,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Sink",
+          "path": "Workspace/MrB's Stud Asset pack/Bathroom/Sink",
+          "category": "Bathroom",
+          "size": {"x": 3, "y": 2, "z": 4},
+          "footprint": {"x": 3, "z": 4},
+          "groundOffset": 1,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 3,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Bath",
+          "path": "Workspace/MrB's Stud Asset pack/Bathroom/Bath",
+          "category": "Bathroom",
+          "size": {"x": 5, "y": 4, "z": 10},
+          "footprint": {"x": 5, "z": 10},
+          "groundOffset": 2,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 6,
+          "farmUse": "Indoor farmhouse"
+        },
+        {
+          "name": "Curtain",
+          "path": "Workspace/MrB's Stud Asset pack/Bathroom/Curtain",
+          "category": "Bathroom",
+          "size": {"x": 1, "y": 9, "z": 10},
+          "footprint": {"x": 1, "z": 10},
+          "groundOffset": 4.5,
+          "pivotAtBottom": false,
+          "recommendedSpacing": 5,
+          "farmUse": "Indoor farmhouse"
+        }
+      ]
+    }
+  ],
+  "farmMarketRecommendations": {
+    "essential": {
+      "marketStalls": ["Shop", "Table"],
+      "fencing": ["Fence"],
+      "seating": ["Bench", "Park Bench", "Chair", "Log with seat"],
+      "signage": ["Small Sign", "Big Sign"],
+      "storage": ["Box", "basket"]
+    },
+    "vegetation": {
+      "trees": ["Tree", "Pine Tree", "Oletro Tree 1 (Small)", "Oletro Tree 2 (Large)"],
+      "bushes": ["Large bush", "Medium Bush"],
+      "plants": ["Plant", "Flowers"],
+      "groundCover": ["grass 1", "grass 2", "Grass 3", "Dirt Pile", "Dirt Pile 2"]
+    },
+    "decoration": {
+      "rocks": ["Large Rock", "Medium Rock", "Small Rock", "Big Rock", "Pebble 1", "Pebble 2"],
+      "logs": ["Log", "Normal log"],
+      "lighting": ["Street Light 1", "Street Light 2"],
+      "misc": ["Trash Bin", "Campfire", "Picnic Carpet", "Blanket"]
+    }
+  },
+  "placementGuide": {
+    "description": "groundOffset is the Y value to add when placing at ground level",
+    "formula": "finalY = groundY + model.groundOffset",
+    "example": "To place 'Tree' on ground at Y=0: PivotTo(CFrame.new(x, 9.7, z))",
+    "spacingNote": "recommendedSpacing is the minimum distance between same model types"
+  },
+  "sizeReference": {
+    "tallest": [
+      {"name": "Pine Tree", "height": 21.57},
+      {"name": "Palm Tree", "height": 20.64},
+      {"name": "Tree", "height": 19.4},
+      {"name": "Oletro Tree 2", "height": 18.21},
+      {"name": "Street Light 1", "height": 15.75}
+    ],
+    "smallest": [
+      {"name": "Flowers", "height": 1.07},
+      {"name": "Pebble 1", "height": 1.0},
+      {"name": "basket", "height": 1.27},
+      {"name": "Dirt Pile", "height": 1.5},
+      {"name": "Normal log", "height": 1.5}
+    ],
+    "widestFootprint": [
+      {"name": "Palm Tree", "footprint": "19.66 x 20.63"},
+      {"name": "Pine Tree", "footprint": "17.86 x 20.7"},
+      {"name": "Tree", "footprint": "12.5 x 17.6"},
+      {"name": "Car", "footprint": "20.5 x 8.5"},
+      {"name": "Table", "footprint": "15 x 8"}
+    ]
+  }
+}
